@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sorting Algorithm Visualizer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Sorting Algorithm Visualizer</h1>
+
+    <div class="controls">
+      <p>Array Size:
+        <input type="number" id="startBox" onkeydown="handleKeyPress(event)">
+        <button class="setterButton" onclick="updateSize()">Update</button>
+      </p>
+      <span class="speed-label">Speed</span>
+      <input type="range" id="speedControl" min="-100" max="50" value="50" oninput="updateDelay()">
+      <button id="pauseButton" onclick="togglePause()"><i class="fas fa-pause"></i></button>
+      <button id="stopButton" onclick="stopSort()"><i class="fas fa-stop"></i></button>
+      <button id="restartButton" onclick="initializeArray()"><i class="fas fa-redo"></i></button>
+      <button id="moreInfoButton" onclick="openModal()"><i class="fas fa-info-circle"></i> More Info</button>
+    </div>
+
+    <div class="controls">
+      <button class="tooltip" data-tooltip="O(n×n!) - Repeatedly shuffles array until sorted"
+        onclick="startSort('bogo')">Bogo Sort</button>
+      <button class="tooltip" data-tooltip="O(n²) - Compares adjacent elements and swaps if needed"
+        onclick="startSort('bubble')">Bubble Sort</button>
+      <button class="tooltip" data-tooltip="O(n²) - Builds sorted array one item at a time"
+        onclick="startSort('insertion')">Insertion Sort</button>
+      <button class="tooltip" data-tooltip="O(n²) - Selects minimum element repeatedly"
+        onclick="startSort('selection')">Selection Sort</button>
+      <button class="tooltip" data-tooltip="O(n log n) - Divides and merges subarrays"
+        onclick="startSort('merge')">Merge Sort</button>
+      <button class="tooltip" data-tooltip="O(n log n) avg - Partitions around pivot element"
+        onclick="startSort('quick')">Quick Sort</button>
+      <button class="tooltip" data-tooltip="O(d × n) - Sorts by processing each digit position"
+        onclick="startSort('radix')">Radix Sort</button>
+    </div>
+
+    <div id="counter" style="text-align: center; font-size: 16px; margin: 16px 0; opacity: 0;">
+      Shuffle Count: 0
+    </div>
+
+    <div class="main-content">
+      <div id="array-container"></div>
+      <div id="stats-panel">
+        <h3>Sorting Statistics</h3>
+        <p>Comparisons: <span id="comparisons">0</span></p>
+        <p>Swaps: <span id="swaps">0</span></p>
+        <p>Time Elapsed: <span id="timeElapsed">0</span>s</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Algorithm Info Modal -->
+  <div class="modal-overlay" id="algorithmModal">
+    <div class="modal-container">
+      <nav class="modal-sidebar">
+        <h3>Algorithms</h3>
+        <button class="sidebar-item" data-algorithm="bubble">Bubble Sort</button>
+        <button class="sidebar-item" data-algorithm="insertion">Insertion Sort</button>
+        <button class="sidebar-item" data-algorithm="selection">Selection Sort</button>
+        <button class="sidebar-item" data-algorithm="merge">Merge Sort</button>
+        <button class="sidebar-item" data-algorithm="quick">Quick Sort</button>
+        <button class="sidebar-item" data-algorithm="radix">Radix Sort</button>
+        <button class="sidebar-item" data-algorithm="bogo">Bogo Sort</button>
+      </nav>
+
+      <div class="modal-content" id="modalContent">
+        <div class="modal-header">
+          <h2>Sorting Algorithms</h2>
+          <button class="close-button" onclick="closeModal()">&times;</button>
+        </div>
+
+        <!-- Bubble Sort Section -->
+        <div class="algorithm-section" id="section-bubble">
+          <h3 class="section-title">Bubble Sort</h3>
+
+          <div class="run-buttons">
+            <button class="run-button random" onclick="runPresetCase('bubble', 'random')"><i class="fas fa-random"></i>
+              Run Random</button>
+            <button class="run-button best-case" onclick="runPresetCase('bubble', 'best')"><i class="fas fa-check"></i>
+              Run Best Case</button>
+            <button class="run-button worst-case" onclick="runPresetCase('bubble', 'worst')"><i
+                class="fas fa-times"></i> Run Worst Case</button>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>Description</h4>
+            <p>Bubble Sort is a simple comparison-based sorting algorithm. It repeatedly steps through the list,
+              compares adjacent elements, and swaps them if they are in the wrong order. The pass through the list is
+              repeated until the list is sorted. The algorithm gets its name because smaller elements "bubble" to the
+              top of the list.</p>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>How It Works</h4>
+            <p>1. Start at the beginning of the array.<br>
+              2. Compare the first two elements. If the first is greater than the second, swap them.<br>
+              3. Move to the next pair and repeat the comparison and swap if needed.<br>
+              4. Continue until the end of the array. The largest element will be at the end.<br>
+              5. Repeat the process for the remaining unsorted portion.<br>
+              6. Continue until no swaps are needed in a complete pass.</p>
+          </div>
+
+          <div class="complexity-info">
+            <div class="complexity-card">
+              <h5>Best Case</h5>
+              <div class="value">O(n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Already sorted array</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Worst Case</h5>
+              <div class="value">O(n²)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Reverse sorted array</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Average Case</h5>
+              <div class="value">O(n²)</div>
+            </div>
+            <div class="complexity-card">
+              <h5>Space Complexity</h5>
+              <div class="value">O(1)</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Python Implementation</span>
+            </div>
+            <div class="code-content">
+              <pre><span class="keyword">def</span> <span class="function">bubble_sort</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Sort a list of integers using bubble sort."""</span>
+    n = <span class="function">len</span>(arr)
+    result = arr.copy()
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(n):
+        swapped = <span class="keyword">False</span>
+        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="function">range</span>(<span class="number">0</span>, n - i - <span class="number">1</span>):
+            <span class="keyword">if</span> result[j] > result[j + <span class="number">1</span>]:
+                result[j], result[j + <span class="number">1</span>] = result[j + <span class="number">1</span>], result[j]
+                swapped = <span class="keyword">True</span>
+        <span class="keyword">if not</span> swapped:
+            <span class="keyword">break</span>
+    
+    <span class="keyword">return</span> result</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Insertion Sort Section -->
+        <div class="algorithm-section" id="section-insertion">
+          <h3 class="section-title">Insertion Sort</h3>
+
+          <div class="run-buttons">
+            <button class="run-button random" onclick="runPresetCase('insertion', 'random')"><i
+                class="fas fa-random"></i> Run Random</button>
+            <button class="run-button best-case" onclick="runPresetCase('insertion', 'best')"><i
+                class="fas fa-check"></i> Run Best Case</button>
+            <button class="run-button worst-case" onclick="runPresetCase('insertion', 'worst')"><i
+                class="fas fa-times"></i> Run Worst Case</button>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>Description</h4>
+            <p>Insertion Sort builds the final sorted array one item at a time. It is much less efficient on large lists
+              than more advanced algorithms such as quicksort or merge sort. However, it provides several advantages:
+              simple implementation, efficient for small data sets, adaptive (efficient for data sets that are already
+              substantially sorted), stable, and in-place.</p>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>How It Works</h4>
+            <p>1. Start with the second element (index 1) as the current element.<br>
+              2. Compare the current element with elements in the sorted portion (to its left).<br>
+              3. Shift all elements greater than the current element one position to the right.<br>
+              4. Insert the current element at its correct position in the sorted portion.<br>
+              5. Move to the next element and repeat until the entire array is sorted.</p>
+          </div>
+
+          <div class="complexity-info">
+            <div class="complexity-card">
+              <h5>Best Case</h5>
+              <div class="value">O(n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Already sorted array</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Worst Case</h5>
+              <div class="value">O(n²)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Reverse sorted array</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Average Case</h5>
+              <div class="value">O(n²)</div>
+            </div>
+            <div class="complexity-card">
+              <h5>Space Complexity</h5>
+              <div class="value">O(1)</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Python Implementation</span>
+            </div>
+            <div class="code-content">
+              <pre><span class="keyword">def</span> <span class="function">insertion_sort</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Sort a list of integers using insertion sort."""</span>
+    result = arr.copy()
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="number">1</span>, <span class="function">len</span>(result)):
+        key = result[i]
+        j = i - <span class="number">1</span>
+        
+        <span class="comment"># Move elements greater than key one position ahead</span>
+        <span class="keyword">while</span> j >= <span class="number">0</span> <span class="keyword">and</span> result[j] > key:
+            result[j + <span class="number">1</span>] = result[j]
+            j -= <span class="number">1</span>
+        
+        result[j + <span class="number">1</span>] = key
+    
+    <span class="keyword">return</span> result</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selection Sort Section -->
+        <div class="algorithm-section" id="section-selection">
+          <h3 class="section-title">Selection Sort</h3>
+
+          <div class="run-buttons">
+            <button class="run-button random" onclick="runPresetCase('selection', 'random')"><i
+                class="fas fa-random"></i> Run Random</button>
+            <button class="run-button best-case" onclick="runPresetCase('selection', 'best')"><i
+                class="fas fa-check"></i> Run Best Case</button>
+            <button class="run-button worst-case" onclick="runPresetCase('selection', 'worst')"><i
+                class="fas fa-times"></i> Run Worst Case</button>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>Description</h4>
+            <p>Selection Sort divides the input list into two parts: a sorted portion at the left end and an unsorted
+              portion at the right end. Initially, the sorted portion is empty. The algorithm repeatedly selects the
+              smallest element from the unsorted portion and moves it to the end of the sorted portion.</p>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>How It Works</h4>
+            <p>1. Find the minimum element in the unsorted portion of the array.<br>
+              2. Swap it with the first element of the unsorted portion.<br>
+              3. Move the boundary between sorted and unsorted portions one element to the right.<br>
+              4. Repeat until the entire array is sorted.</p>
+          </div>
+
+          <div class="complexity-info">
+            <div class="complexity-card">
+              <h5>Best Case</h5>
+              <div class="value">O(n²)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Always scans entire unsorted
+                portion</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Worst Case</h5>
+              <div class="value">O(n²)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Same as best case</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Average Case</h5>
+              <div class="value">O(n²)</div>
+            </div>
+            <div class="complexity-card">
+              <h5>Space Complexity</h5>
+              <div class="value">O(1)</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Python Implementation</span>
+            </div>
+            <div class="code-content">
+              <pre><span class="keyword">def</span> <span class="function">selection_sort</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Sort a list of integers using selection sort."""</span>
+    result = arr.copy()
+    n = <span class="function">len</span>(result)
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(n):
+        <span class="comment"># Find minimum element in unsorted portion</span>
+        min_idx = i
+        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="function">range</span>(i + <span class="number">1</span>, n):
+            <span class="keyword">if</span> result[j] < result[min_idx]:
+                min_idx = j
+        
+        <span class="comment"># Swap minimum with first unsorted element</span>
+        result[i], result[min_idx] = result[min_idx], result[i]
+    
+    <span class="keyword">return</span> result</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Merge Sort Section -->
+        <div class="algorithm-section" id="section-merge">
+          <h3 class="section-title">Merge Sort</h3>
+
+          <div class="run-buttons">
+            <button class="run-button random" onclick="runPresetCase('merge', 'random')"><i class="fas fa-random"></i>
+              Run Random</button>
+            <button class="run-button best-case" onclick="runPresetCase('merge', 'best')"><i class="fas fa-check"></i>
+              Run Best Case</button>
+            <button class="run-button worst-case" onclick="runPresetCase('merge', 'worst')"><i class="fas fa-times"></i>
+              Run Worst Case</button>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>Description</h4>
+            <p>Merge Sort is an efficient, stable, comparison-based, divide-and-conquer sorting algorithm. It divides
+              the input array into two halves, recursively sorts them, and then merges the sorted halves. It
+              consistently performs at O(n log n) time complexity regardless of input distribution.</p>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>How It Works</h4>
+            <p>1. Divide the unsorted array into two halves.<br>
+              2. Recursively sort each half using merge sort.<br>
+              3. Merge the two sorted halves by comparing elements and placing them in order.<br>
+              4. Continue merging until you have a single sorted array.<br>
+              5. The base case is when an array has 0 or 1 elements (already sorted).</p>
+          </div>
+
+          <div class="complexity-info">
+            <div class="complexity-card">
+              <h5>Best Case</h5>
+              <div class="value">O(n log n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Always divides and merges</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Worst Case</h5>
+              <div class="value">O(n log n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Same as best case</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Average Case</h5>
+              <div class="value">O(n log n)</div>
+            </div>
+            <div class="complexity-card">
+              <h5>Space Complexity</h5>
+              <div class="value">O(n)</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Python Implementation</span>
+            </div>
+            <div class="code-content">
+              <pre><span class="keyword">def</span> <span class="function">merge_sort</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Sort a list of integers using merge sort."""</span>
+    <span class="keyword">if</span> <span class="function">len</span>(arr) <= <span class="number">1</span>:
+        <span class="keyword">return</span> arr.copy()
+    
+    mid = <span class="function">len</span>(arr) // <span class="number">2</span>
+    left = <span class="function">merge_sort</span>(arr[:mid])
+    right = <span class="function">merge_sort</span>(arr[mid:])
+    
+    <span class="keyword">return</span> <span class="function">merge</span>(left, right)
+
+<span class="keyword">def</span> <span class="function">merge</span>(left: <span class="function">list</span>[<span class="function">int</span>], right: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Merge two sorted lists into one sorted list."""</span>
+    result = []
+    i = j = <span class="number">0</span>
+    
+    <span class="keyword">while</span> i < <span class="function">len</span>(left) <span class="keyword">and</span> j < <span class="function">len</span>(right):
+        <span class="keyword">if</span> left[i] <= right[j]:
+            result.append(left[i])
+            i += <span class="number">1</span>
+        <span class="keyword">else</span>:
+            result.append(right[j])
+            j += <span class="number">1</span>
+    
+    result.extend(left[i:])
+    result.extend(right[j:])
+    <span class="keyword">return</span> result</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Sort Section -->
+        <div class="algorithm-section" id="section-quick">
+          <h3 class="section-title">Quick Sort</h3>
+
+          <div class="run-buttons">
+            <button class="run-button random" onclick="runPresetCase('quick', 'random')"><i class="fas fa-random"></i>
+              Run Random</button>
+            <button class="run-button best-case" onclick="runPresetCase('quick', 'best')"><i class="fas fa-check"></i>
+              Run Best Case</button>
+            <button class="run-button worst-case" onclick="runPresetCase('quick', 'worst')"><i class="fas fa-times"></i>
+              Run Worst Case</button>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>Description</h4>
+            <p>Quick Sort is a highly efficient, divide-and-conquer sorting algorithm. It works by selecting a "pivot"
+              element and partitioning the array around it so that elements smaller than the pivot are on its left and
+              larger elements are on its right. It then recursively sorts the sub-arrays.</p>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>How It Works</h4>
+            <p>1. Choose a pivot element from the array (often the last element).<br>
+              2. Partition: Reorder elements so all values less than pivot come before it, and all greater values come
+              after.<br>
+              3. Recursively apply quicksort to the sub-array of elements less than the pivot.<br>
+              4. Recursively apply quicksort to the sub-array of elements greater than the pivot.<br>
+              5. The base case is when a sub-array has 0 or 1 elements.</p>
+          </div>
+
+          <div class="complexity-info">
+            <div class="complexity-card">
+              <h5>Best Case</h5>
+              <div class="value">O(n log n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Pivot always divides evenly</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Worst Case</h5>
+              <div class="value">O(n²)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Already sorted (poor pivot)</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Average Case</h5>
+              <div class="value">O(n log n)</div>
+            </div>
+            <div class="complexity-card">
+              <h5>Space Complexity</h5>
+              <div class="value">O(log n)</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Python Implementation</span>
+            </div>
+            <div class="code-content">
+              <pre><span class="keyword">def</span> <span class="function">quick_sort</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Sort a list of integers using quick sort."""</span>
+    <span class="keyword">if</span> <span class="function">len</span>(arr) <= <span class="number">1</span>:
+        <span class="keyword">return</span> arr.copy()
+    
+    result = arr.copy()
+    <span class="function">_quick_sort_helper</span>(result, <span class="number">0</span>, <span class="function">len</span>(result) - <span class="number">1</span>)
+    <span class="keyword">return</span> result
+
+<span class="keyword">def</span> <span class="function">_quick_sort_helper</span>(arr: <span class="function">list</span>[<span class="function">int</span>], low: <span class="function">int</span>, high: <span class="function">int</span>) -> <span class="keyword">None</span>:
+    <span class="keyword">if</span> low < high:
+        pivot_idx = <span class="function">partition</span>(arr, low, high)
+        <span class="function">_quick_sort_helper</span>(arr, low, pivot_idx - <span class="number">1</span>)
+        <span class="function">_quick_sort_helper</span>(arr, pivot_idx + <span class="number">1</span>, high)
+
+<span class="keyword">def</span> <span class="function">partition</span>(arr: <span class="function">list</span>[<span class="function">int</span>], low: <span class="function">int</span>, high: <span class="function">int</span>) -> <span class="function">int</span>:
+    pivot = arr[high]
+    i = low - <span class="number">1</span>
+    
+    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="function">range</span>(low, high):
+        <span class="keyword">if</span> arr[j] <= pivot:
+            i += <span class="number">1</span>
+            arr[i], arr[j] = arr[j], arr[i]
+    
+    arr[i + <span class="number">1</span>], arr[high] = arr[high], arr[i + <span class="number">1</span>]
+    <span class="keyword">return</span> i + <span class="number">1</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Radix Sort Section -->
+        <div class="algorithm-section" id="section-radix">
+          <h3 class="section-title">Radix Sort</h3>
+
+          <div class="run-buttons">
+            <button class="run-button random" onclick="runPresetCase('radix', 'random')"><i class="fas fa-random"></i>
+              Run Random</button>
+            <button class="run-button best-case" onclick="runPresetCase('radix', 'best')"><i class="fas fa-check"></i>
+              Run Best Case</button>
+            <button class="run-button worst-case" onclick="runPresetCase('radix', 'worst')"><i class="fas fa-times"></i>
+              Run Worst Case</button>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>Description</h4>
+            <p>Radix Sort is a non-comparative integer sorting algorithm that sorts numbers by processing individual
+              digits. It processes digits from least significant to most significant (LSD) or vice versa (MSD). It uses
+              counting sort as a subroutine to sort the array based on each digit position.</p>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>How It Works</h4>
+            <p>1. Find the maximum number to determine the number of digits.<br>
+              2. Starting from the least significant digit (ones place):<br>
+              3. Use counting sort to arrange elements based on the current digit.<br>
+              4. Move to the next significant digit (tens, hundreds, etc.).<br>
+              5. Repeat until all digit positions have been processed.<br>
+              6. The array is now sorted.</p>
+          </div>
+
+          <div class="complexity-info">
+            <div class="complexity-card">
+              <h5>Best Case</h5>
+              <div class="value">O(d × n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">d = number of digits</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Worst Case</h5>
+              <div class="value">O(d × n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Same regardless of input</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Average Case</h5>
+              <div class="value">O(d × n)</div>
+            </div>
+            <div class="complexity-card">
+              <h5>Space Complexity</h5>
+              <div class="value">O(n + k)</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Python Implementation</span>
+            </div>
+            <div class="code-content">
+              <pre><span class="keyword">def</span> <span class="function">radix_sort</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Sort a list of non-negative integers using radix sort."""</span>
+    <span class="keyword">if not</span> arr:
+        <span class="keyword">return</span> []
+    
+    result = arr.copy()
+    max_val = <span class="function">max</span>(result)
+    exp = <span class="number">1</span>
+    
+    <span class="keyword">while</span> max_val // exp > <span class="number">0</span>:
+        <span class="function">counting_sort_by_digit</span>(result, exp)
+        exp *= <span class="number">10</span>
+    
+    <span class="keyword">return</span> result
+
+<span class="keyword">def</span> <span class="function">counting_sort_by_digit</span>(arr: <span class="function">list</span>[<span class="function">int</span>], exp: <span class="function">int</span>) -> <span class="keyword">None</span>:
+    n = <span class="function">len</span>(arr)
+    output = [<span class="number">0</span>] * n
+    count = [<span class="number">0</span>] * <span class="number">10</span>
+    
+    <span class="keyword">for</span> num <span class="keyword">in</span> arr:
+        digit = (num // exp) % <span class="number">10</span>
+        count[digit] += <span class="number">1</span>
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="number">1</span>, <span class="number">10</span>):
+        count[i] += count[i - <span class="number">1</span>]
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(n - <span class="number">1</span>, -<span class="number">1</span>, -<span class="number">1</span>):
+        digit = (arr[i] // exp) % <span class="number">10</span>
+        output[count[digit] - <span class="number">1</span>] = arr[i]
+        count[digit] -= <span class="number">1</span>
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(n):
+        arr[i] = output[i]</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bogo Sort Section -->
+        <div class="algorithm-section" id="section-bogo">
+          <h3 class="section-title">Bogo Sort</h3>
+
+          <div class="run-buttons">
+            <button class="run-button random" onclick="runPresetCase('bogo', 'random')"><i class="fas fa-random"></i>
+              Run Random</button>
+            <button class="run-button best-case" onclick="runPresetCase('bogo', 'best')"><i class="fas fa-check"></i>
+              Run Best Case</button>
+            <button class="run-button worst-case" onclick="runPresetCase('bogo', 'worst')"><i class="fas fa-times"></i>
+              Run Worst Case</button>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>Description</h4>
+            <p>Bogo Sort (also known as Permutation Sort, Stupid Sort, or Monkey Sort) is a highly inefficient sorting
+              algorithm based on the generate-and-test paradigm. It randomly shuffles the array and checks if it's
+              sorted. This is essentially the sorting equivalent of throwing cards in the air and hoping they land in
+              order.</p>
+          </div>
+
+          <div class="algorithm-description">
+            <h4>How It Works</h4>
+            <p>1. Check if the array is sorted.<br>
+              2. If sorted, you're done!<br>
+              3. If not sorted, randomly shuffle all elements.<br>
+              4. Go back to step 1.<br>
+              5. Repeat until you get lucky and the array ends up sorted.<br>
+              6. Hope you have a lot of time (and luck).</p>
+          </div>
+
+          <div class="complexity-info">
+            <div class="complexity-card">
+              <h5>Best Case</h5>
+              <div class="value">O(n)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Already sorted (just one check)</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Worst Case</h5>
+              <div class="value">O(infinity)</div>
+              <p style="color: var(--text-muted); font-size: 12px; margin-top: 8px;">Unbounded - may never finish</p>
+            </div>
+            <div class="complexity-card">
+              <h5>Average Case</h5>
+              <div class="value">O(n × n!)</div>
+            </div>
+            <div class="complexity-card">
+              <h5>Space Complexity</h5>
+              <div class="value">O(1)</div>
+            </div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>Python Implementation</span>
+            </div>
+            <div class="code-content">
+              <pre><span class="keyword">import</span> random
+
+<span class="keyword">def</span> <span class="function">bogo_sort</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">list</span>[<span class="function">int</span>]:
+    <span class="string">"""Sort a list using bogo sort. Not recommended for large lists!"""</span>
+    result = arr.copy()
+    
+    <span class="keyword">while not</span> <span class="function">is_sorted</span>(result):
+        random.shuffle(result)
+    
+    <span class="keyword">return</span> result
+
+<span class="keyword">def</span> <span class="function">is_sorted</span>(arr: <span class="function">list</span>[<span class="function">int</span>]) -> <span class="function">bool</span>:
+    <span class="string">"""Check if list is sorted in ascending order."""</span>
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="function">range</span>(<span class="function">len</span>(arr) - <span class="number">1</span>):
+        <span class="keyword">if</span> arr[i] > arr[i + <span class="number">1</span>]:
+            <span class="keyword">return</span> <span class="keyword">False</span>
+    <span class="keyword">return</span> <span class="keyword">True</span>
+
+<span class="comment"># Warning: For an array of n elements, expected</span>
+<span class="comment"># number of shuffles is n! (factorial)</span>
+<span class="comment"># For n=10, that's 3,628,800 expected shuffles!</span></pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
