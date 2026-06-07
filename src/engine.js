@@ -3,7 +3,7 @@
 // gets step-forward, step-back, scrub-to-any-point, and auto-play for free,
 // all sharing one consistent counter of comparisons / writes.
 
-const DEFAULT_CAP = 500000; // safety bound so recording always terminates
+export const DEFAULT_CAP = 20000; // safety bound so recording always terminates
 
 export function createEngine() {
   let ops = [];
@@ -142,6 +142,9 @@ export function createEngine() {
     },
     get truncated() {
       return truncated;
+    },
+    get cap() {
+      return DEFAULT_CAP;
     },
     get stats() {
       return { comparisons, writes, shuffles };

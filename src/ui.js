@@ -4,6 +4,8 @@
 
 import { algorithms } from './algorithms.js';
 
+const MAIN_ALGORITHMS = new Set(['bubble', 'insertion', 'selection', 'merge', 'quick', 'heap']);
+
 const PY_KEYWORDS = new Set([
   'def', 'return', 'for', 'while', 'if', 'elif', 'else', 'in', 'and', 'or',
   'not', 'break', 'continue', 'import', 'from', 'as', 'None', 'True', 'False',
@@ -53,29 +55,48 @@ function groupByCategory(list) {
 
 export function buildAlgorithmButtons(container, onSelect) {
   container.innerHTML = '';
-  for (const [category, items] of groupByCategory(algorithms)) {
-    const group = document.createElement('div');
-    group.className = 'algo-group';
+  const mainAlgorithms = algorithms.filter((algo) => MAIN_ALGORITHMS.has(algo.key));
+  const moreAlgorithms = algorithms.filter((algo) => !MAIN_ALGORITHMS.has(algo.key));
 
-    const label = document.createElement('span');
-    label.className = 'algo-group-label';
-    label.textContent = category;
-    group.appendChild(label);
+  const appendGroups = (parent, list) => {
+    for (const [category, items] of groupByCategory(list)) {
+      const group = document.createElement('div');
+      group.className = 'algo-group';
 
-    const chips = document.createElement('div');
-    chips.className = 'algo-chips';
-    for (const algo of items) {
-      const button = document.createElement('button');
-      button.className = 'algo-button tooltip';
-      button.textContent = algo.name.replace(/ Sort$/, '');
-      button.dataset.tooltip = algo.tooltip;
-      button.dataset.algorithm = algo.key;
-      button.addEventListener('click', () => onSelect(algo.key));
-      chips.appendChild(button);
+      const label = document.createElement('span');
+      label.className = 'algo-group-label';
+      label.textContent = category;
+      group.appendChild(label);
+
+      const chips = document.createElement('div');
+      chips.className = 'algo-chips';
+      for (const algo of items) {
+        const button = document.createElement('button');
+        button.className = 'algo-button tooltip';
+        button.textContent = algo.name.replace(/ Sort$/, '');
+        button.dataset.tooltip = algo.tooltip;
+        button.dataset.algorithm = algo.key;
+        button.addEventListener('click', () => onSelect(algo.key));
+        chips.appendChild(button);
+      }
+      group.appendChild(chips);
+      parent.appendChild(group);
     }
-    group.appendChild(chips);
-    container.appendChild(group);
-  }
+  };
+
+  appendGroups(container, mainAlgorithms);
+
+  const more = document.createElement('details');
+  more.className = 'more-algorithms';
+  const summary = document.createElement('summary');
+  summary.textContent = 'More algorithms';
+  more.appendChild(summary);
+
+  const moreContent = document.createElement('div');
+  moreContent.className = 'more-algorithms-content';
+  appendGroups(moreContent, moreAlgorithms);
+  more.appendChild(moreContent);
+  container.appendChild(more);
 }
 
 // --- docs modal --------------------------------------------------------------

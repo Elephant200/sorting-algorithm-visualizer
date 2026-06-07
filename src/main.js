@@ -19,6 +19,8 @@ import {
 
 const MIN_SIZE = 3;
 const MAX_SIZE = 300;
+const DEFAULT_SIZE = 100;
+const DEFAULT_SPEED = 55;
 
 const $ = (id) => document.getElementById(id);
 
@@ -34,6 +36,7 @@ const dom = {
   playPause: $('play-pause'),
   stepForward: $('step-forward'),
   speed: $('speed'),
+  progress: $('progress'),
   status: $('status'),
   modalOverlay: $('modal-overlay'),
   modalSidebar: $('modal-sidebar'),
@@ -55,7 +58,7 @@ const renderer = createRenderer({
 });
 
 const state = {
-  size: 50,
+  size: DEFAULT_SIZE,
   distribution: 'random',
   algorithm: null,
   baseArray: [],
@@ -100,19 +103,21 @@ function setActiveButton(key) {
 function renderFrame() {
   renderer.frame(engine.array, engine.sorted, engine.currentOp());
   renderer.setStats(engine.stats, currentTimeSec(), isBogo());
+  const progress = engine.total === 0 ? 0 : Math.round((engine.cursor / engine.total) * 100);
+  dom.progress.textContent = `${progress}%`;
   if (engine.total === 0) {
     dom.status.textContent = 'Pick an algorithm';
   } else if (engine.done) {
-    dom.status.textContent = engine.truncated ? 'Stopped — too long' : 'Sorted';
+    dom.status.textContent = engine.truncated ? `Stopped at cap (${engine.cap.toLocaleString()} steps)` : 'Sorted';
   } else {
-    dom.status.textContent = state.playing ? 'Sorting…' : 'Paused';
+    dom.status.textContent = state.playing ? 'Sorting...' : 'Paused';
   }
 }
 
 function setPlayIcon(playing) {
   dom.playPause.innerHTML = playing
-    ? '<i class="fas fa-pause"></i>'
-    : '<i class="fas fa-play"></i>';
+    ? '<i class="fas fa-pause" aria-hidden="true"></i>'
+    : '<i class="fas fa-play" aria-hidden="true"></i>';
 }
 
 // --- driver ------------------------------------------------------------------
@@ -141,12 +146,14 @@ function play() {
 }
 
 function pause() {
+  const wasPlaying = state.playing;
   if (state.playing) {
     state.elapsedMs += performance.now() - state.playStartedAt;
   }
   state.playing = false;
   clearTimeout(state.timer);
   setPlayIcon(false);
+  if (wasPlaying) renderFrame();
 }
 
 function togglePlay() {
@@ -171,6 +178,7 @@ function regenerate() {
   renderer.setArray(state.baseArray);
   renderer.clearHighlights(state.baseArray, engine.sorted);
   renderer.setStats(engine.stats, 0, false);
+  dom.progress.textContent = '0%';
   dom.status.textContent = 'Pick an algorithm';
 }
 
@@ -183,15 +191,15 @@ function runAlgorithm(key, array = state.baseArray) {
   engine.record(algorithmsByKey[key].gen, array);
   renderer.setArray(array);
   renderFrame();
-  play();
 }
 
 function runPreset(key, caseType) {
-  const size = key === 'bogo' ? 6 : 30;
+  const size = DEFAULT_SIZE;
   const makers = { best: bestCaseArray, worst: worstCaseArray, random: randomCaseArray };
   const array = (makers[caseType] ?? randomCaseArray)(key, size);
   state.size = array.length;
   dom.sizeInput.value = array.length;
+  dom.speed.value = DEFAULT_SPEED;
   closeModal();
   setTimeout(() => runAlgorithm(key, array), 250);
 }
@@ -246,7 +254,22 @@ function bindEvents() {
     if (e.target === dom.modalOverlay) closeModal();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+      closeModal();
+      return;
+    }
+
+    const target = e.target;
+    const isTyping =
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLSelectElement ||
+      target instanceof HTMLTextAreaElement ||
+      target?.isContentEditable;
+    const isDisclosure = target instanceof HTMLElement && target.tagName === 'SUMMARY';
+    if ((e.key === ' ' || e.key === 'Enter') && !isTyping && !isDisclosure && !dom.modalOverlay.classList.contains('active')) {
+      e.preventDefault();
+      togglePlay();
+    }
   });
 
   let resizeTimer;
@@ -269,6 +292,7 @@ function init() {
     runPreset
   );
   dom.sizeInput.value = state.size;
+  dom.speed.value = DEFAULT_SPEED;
   bindEvents();
   regenerate();
 }
