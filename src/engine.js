@@ -3,7 +3,7 @@
 // gets step-forward, step-back, scrub-to-any-point, and auto-play for free,
 // all sharing one consistent counter of comparisons / writes.
 
-export const DEFAULT_CAP = 20000; // safety bound so recording always terminates
+export const DEFAULT_CAP = 100000; // safety bound so recording always terminates
 
 export function createEngine() {
   let ops = [];
