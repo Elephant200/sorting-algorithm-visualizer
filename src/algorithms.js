@@ -436,6 +436,97 @@ function* counting(a) {
   yield* sweep(a);
 }
 
+function* bead(a) {
+  if (a.length === 0) return;
+  const max = Math.max(...a);
+  const beadRows = new Array(max).fill(0);
+  for (let i = 0; i < a.length; i++) {
+    yield compare(i, i);
+    for (let level = 0; level < a[i]; level++) beadRows[level]++;
+  }
+  for (let i = 0; i < a.length; i++) {
+    const threshold = a.length - 1 - i;
+    let value = 0;
+    for (let level = 0; level < max; level++) {
+      if (beadRows[level] > threshold) value++;
+    }
+    yield* write(a, i, value);
+  }
+  yield* sweep(a);
+}
+
+function* gnome(a) {
+  let i = 1;
+  while (i < a.length) {
+    yield compare(i - 1, i);
+    if (a[i - 1] <= a[i]) i++;
+    else {
+      yield* swap(a, i - 1, i);
+      if (i > 1) i--;
+      else i = 1;
+    }
+  }
+  yield* sweep(a);
+}
+
+function* oddEven(a) {
+  let sortedPass = false;
+  while (!sortedPass) {
+    sortedPass = true;
+    for (let i = 1; i < a.length - 1; i += 2) {
+      yield compare(i, i + 1);
+      if (a[i] > a[i + 1]) {
+        yield* swap(a, i, i + 1);
+        sortedPass = false;
+      }
+    }
+    for (let i = 0; i < a.length - 1; i += 2) {
+      yield compare(i, i + 1);
+      if (a[i] > a[i + 1]) {
+        yield* swap(a, i, i + 1);
+        sortedPass = false;
+      }
+    }
+  }
+  yield* sweep(a);
+}
+
+function* cycle(a) {
+  const n = a.length;
+  for (let cycleStart = 0; cycleStart < n - 1; cycleStart++) {
+    let item = a[cycleStart];
+    let pos = cycleStart;
+    for (let i = cycleStart + 1; i < n; i++) {
+      yield compare(i, cycleStart);
+      if (a[i] < item) pos++;
+    }
+    if (pos === cycleStart) {
+      yield markSorted(cycleStart);
+      continue;
+    }
+    while (item === a[pos]) pos++;
+    if (pos !== cycleStart) {
+      const prev = a[pos];
+      yield* write(a, pos, item);
+      item = prev;
+    }
+    while (pos !== cycleStart) {
+      pos = cycleStart;
+      for (let i = cycleStart + 1; i < n; i++) {
+        yield compare(i, cycleStart);
+        if (a[i] < item) pos++;
+      }
+      while (item === a[pos]) pos++;
+      const prev = a[pos];
+      yield* write(a, pos, item);
+      item = prev;
+    }
+    yield markSorted(cycleStart);
+  }
+  if (n > 0) yield markSorted(n - 1);
+  yield* sweep(a);
+}
+
 // Shuffles until sorted. Only sensible on a handful of elements; the engine's
 // global recording cap is the sole backstop against an unlucky large array.
 function* bogo(a) {
@@ -544,114 +635,6 @@ export const algorithms = [
             if result[j] < result[min_idx]:
                 min_idx = j
         result[i], result[min_idx] = result[min_idx], result[i]
-
-    return result`,
-    },
-  },
-  {
-    key: 'cocktail',
-    category: 'Optimized Variants',
-    name: 'Cocktail Shaker Sort',
-    tooltip: 'O(n²) — bidirectional bubble sort',
-    gen: cocktail,
-    docs: {
-      description:
-        'A bidirectional variation of bubble sort. Each round bubbles the largest element to the right end and then the smallest element back to the left end. Sweeping both ways clears small values stranded near the end ("turtles") faster than plain bubble sort.',
-      steps: [
-        'Bubble the largest element rightward in a forward pass.',
-        'Bubble the smallest element leftward in a backward pass.',
-        'Shrink the active range from both ends.',
-        'Repeat until a full round makes no swaps.',
-      ],
-      complexity: { best: 'O(n)', worst: 'O(n²)', average: 'O(n²)', space: 'O(1)' },
-      code: `def cocktail_sort(arr: list[int]) -> list[int]:
-    """Sort a list of integers using cocktail shaker sort."""
-    result = arr.copy()
-    lo, hi = 0, len(result) - 1
-    swapped = True
-
-    while swapped:
-        swapped = False
-        for i in range(lo, hi):
-            if result[i] > result[i + 1]:
-                result[i], result[i + 1] = result[i + 1], result[i]
-                swapped = True
-        hi -= 1
-        for i in range(hi, lo, -1):
-            if result[i - 1] > result[i]:
-                result[i - 1], result[i] = result[i], result[i - 1]
-                swapped = True
-        lo += 1
-
-    return result`,
-    },
-  },
-  {
-    key: 'comb',
-    category: 'Optimized Variants',
-    name: 'Comb Sort',
-    tooltip: 'O(n²) worst — bubble sort with shrinking gap',
-    gen: comb,
-    docs: {
-      description:
-        'Improves on bubble sort by comparing elements a large gap apart and shrinking the gap by a factor of about 1.3 each pass until it reaches one. The wide early gaps move small values out of the tail quickly, eliminating bubble sort’s "turtle" problem.',
-      steps: [
-        'Start with a gap equal to the array length.',
-        'Compare and swap elements that are `gap` apart.',
-        'Divide the gap by ~1.3 after each pass.',
-        'Once the gap is one, finish like a bubble pass.',
-        'Stop when the gap is one and no swaps occur.',
-      ],
-      complexity: { best: 'O(n log n)', worst: 'O(n²)', average: 'O(n² / 2^p)', space: 'O(1)' },
-      code: `def comb_sort(arr: list[int]) -> list[int]:
-    """Sort a list of integers using comb sort."""
-    result = arr.copy()
-    n = len(result)
-    gap = n
-    swapped = True
-
-    while gap > 1 or swapped:
-        gap = max(1, int(gap / 1.3))
-        swapped = False
-        for i in range(n - gap):
-            if result[i] > result[i + gap]:
-                result[i], result[i + gap] = result[i + gap], result[i]
-                swapped = True
-
-    return result`,
-    },
-  },
-  {
-    key: 'shell',
-    category: 'Optimized Variants',
-    name: 'Shell Sort',
-    tooltip: 'O(n log²n) — gapped insertion sort',
-    gen: shell,
-    docs: {
-      description:
-        'A generalization of insertion sort that first sorts elements far apart, then progressively reduces the gap between compared elements. Moving items long distances early means that by the time the gap is one, the array is nearly sorted and the final insertion pass is cheap.',
-      steps: [
-        'Choose a starting gap (here, half the length).',
-        'Run a gapped insertion sort over the array.',
-        'Halve the gap and repeat.',
-        'Finish with a normal insertion pass at gap one.',
-      ],
-      complexity: { best: 'O(n log n)', worst: 'O(n²)', average: 'O(n log²n)', space: 'O(1)' },
-      code: `def shell_sort(arr: list[int]) -> list[int]:
-    """Sort a list of integers using shell sort."""
-    result = arr.copy()
-    n = len(result)
-    gap = n // 2
-
-    while gap > 0:
-        for i in range(gap, n):
-            temp = result[i]
-            j = i
-            while j >= gap and result[j - gap] > temp:
-                result[j] = result[j - gap]
-                j -= gap
-            result[j] = temp
-        gap //= 2
 
     return result`,
     },
@@ -782,6 +765,114 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
     },
   },
   {
+    key: 'cocktail',
+    category: 'Optimized Variants',
+    name: 'Cocktail Shaker Sort',
+    tooltip: 'O(n²) — bidirectional bubble sort',
+    gen: cocktail,
+    docs: {
+      description:
+        'A bidirectional variation of bubble sort. Each round bubbles the largest element to the right end and then the smallest element back to the left end. Sweeping both ways clears small values stranded near the end ("turtles") faster than plain bubble sort.',
+      steps: [
+        'Bubble the largest element rightward in a forward pass.',
+        'Bubble the smallest element leftward in a backward pass.',
+        'Shrink the active range from both ends.',
+        'Repeat until a full round makes no swaps.',
+      ],
+      complexity: { best: 'O(n)', worst: 'O(n²)', average: 'O(n²)', space: 'O(1)' },
+      code: `def cocktail_sort(arr: list[int]) -> list[int]:
+    """Sort a list of integers using cocktail shaker sort."""
+    result = arr.copy()
+    lo, hi = 0, len(result) - 1
+    swapped = True
+
+    while swapped:
+        swapped = False
+        for i in range(lo, hi):
+            if result[i] > result[i + 1]:
+                result[i], result[i + 1] = result[i + 1], result[i]
+                swapped = True
+        hi -= 1
+        for i in range(hi, lo, -1):
+            if result[i - 1] > result[i]:
+                result[i - 1], result[i] = result[i], result[i - 1]
+                swapped = True
+        lo += 1
+
+    return result`,
+    },
+  },
+  {
+    key: 'comb',
+    category: 'Optimized Variants',
+    name: 'Comb Sort',
+    tooltip: 'O(n²) worst — bubble sort with shrinking gap',
+    gen: comb,
+    docs: {
+      description:
+        'Improves on bubble sort by comparing elements a large gap apart and shrinking the gap by a factor of about 1.3 each pass until it reaches one. The wide early gaps move small values out of the tail quickly, eliminating bubble sort’s "turtle" problem.',
+      steps: [
+        'Start with a gap equal to the array length.',
+        'Compare and swap elements that are `gap` apart.',
+        'Divide the gap by ~1.3 after each pass.',
+        'Once the gap is one, finish like a bubble pass.',
+        'Stop when the gap is one and no swaps occur.',
+      ],
+      complexity: { best: 'O(n log n)', worst: 'O(n²)', average: 'O(n² / 2^p)', space: 'O(1)' },
+      code: `def comb_sort(arr: list[int]) -> list[int]:
+    """Sort a list of integers using comb sort."""
+    result = arr.copy()
+    n = len(result)
+    gap = n
+    swapped = True
+
+    while gap > 1 or swapped:
+        gap = max(1, int(gap / 1.3))
+        swapped = False
+        for i in range(n - gap):
+            if result[i] > result[i + gap]:
+                result[i], result[i + gap] = result[i + gap], result[i]
+                swapped = True
+
+    return result`,
+    },
+  },
+  {
+    key: 'shell',
+    category: 'Optimized Variants',
+    name: 'Shell Sort',
+    tooltip: 'O(n log²n) — gapped insertion sort',
+    gen: shell,
+    docs: {
+      description:
+        'A generalization of insertion sort that first sorts elements far apart, then progressively reduces the gap between compared elements. Moving items long distances early means that by the time the gap is one, the array is nearly sorted and the final insertion pass is cheap.',
+      steps: [
+        'Choose a starting gap (here, half the length).',
+        'Run a gapped insertion sort over the array.',
+        'Halve the gap and repeat.',
+        'Finish with a normal insertion pass at gap one.',
+      ],
+      complexity: { best: 'O(n log n)', worst: 'O(n²)', average: 'O(n log²n)', space: 'O(1)' },
+      code: `def shell_sort(arr: list[int]) -> list[int]:
+    """Sort a list of integers using shell sort."""
+    result = arr.copy()
+    n = len(result)
+    gap = n // 2
+
+    while gap > 0:
+        for i in range(gap, n):
+            temp = result[i]
+            j = i
+            while j >= gap and result[j - gap] > temp:
+                result[j] = result[j - gap]
+                j -= gap
+            result[j] = temp
+        gap //= 2
+
+    return result`,
+    },
+  },
+  {
     key: 'tim',
     category: 'Optimized Variants',
     name: 'Tim Sort',
@@ -909,6 +1000,145 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
         count[num - lo] -= 1
         output[count[num - lo]] = num
     return output`,
+    },
+  },
+  {
+    key: 'bead',
+    category: 'Additional Algorithms',
+    name: 'Bead Sort',
+    tooltip: 'O(n × m) — simulates beads falling under gravity',
+    gen: bead,
+    docs: {
+      description:
+        'A non-comparison sort inspired by an abacus. Each value is represented as a column of beads; gravity lets beads fall into sorted columns. In software this simulation is mostly educational, and its cost depends on both the number of items and the maximum value m.',
+      steps: [
+        'Represent each value as that many beads.',
+        'Count how many beads exist at each height.',
+        'Let those bead counts fall to the right.',
+        'Read the resulting column heights back as sorted values.',
+      ],
+      complexity: { best: 'O(n × m)', worst: 'O(n × m)', average: 'O(n × m)', space: 'O(m)' },
+      code: `def bead_sort(arr: list[int]) -> list[int]:
+    """Sort non-negative integers by simulating bead gravity."""
+    if not arr:
+        return []
+
+    max_value = max(arr)
+    rows = [0] * max_value
+    for value in arr:
+        for level in range(value):
+            rows[level] += 1
+
+    result = []
+    n = len(arr)
+    for i in range(n):
+        threshold = n - 1 - i
+        result.append(sum(1 for count in rows if count > threshold))
+    return result`,
+    },
+  },
+  {
+    key: 'gnome',
+    category: 'Additional Algorithms',
+    name: 'Gnome Sort',
+    tooltip: 'O(n²) — walks backward swapping local inversions',
+    gen: gnome,
+    docs: {
+      description:
+        'A tiny comparison sort similar in spirit to insertion sort. It walks forward while adjacent items are ordered, swaps when it finds an inversion, then steps backward to repair earlier order. Its simplicity makes it easy to visualize, but it is quadratic on messy data.',
+      steps: [
+        'Start at the second element.',
+        'If the previous pair is ordered, step forward.',
+        'If the pair is inverted, swap it and step backward.',
+        'Repeat until the walk reaches the end.',
+      ],
+      complexity: { best: 'O(n)', worst: 'O(n²)', average: 'O(n²)', space: 'O(1)' },
+      code: `def gnome_sort(arr: list[int]) -> list[int]:
+    """Sort by walking backward whenever adjacent values are inverted."""
+    result = arr.copy()
+    i = 1
+    while i < len(result):
+        if result[i - 1] <= result[i]:
+            i += 1
+        else:
+            result[i - 1], result[i] = result[i], result[i - 1]
+            i = max(1, i - 1)
+    return result`,
+    },
+  },
+  {
+    key: 'odd-even',
+    category: 'Additional Algorithms',
+    name: 'Odd-Even Sort',
+    tooltip: 'O(n²) — alternates odd and even adjacent passes',
+    gen: oddEven,
+    docs: {
+      description:
+        'A bubble-sort relative that alternates between comparing odd-indexed pairs and even-indexed pairs. It is useful as a teaching example because those phases can run in parallel, though this visualizer records them sequentially.',
+      steps: [
+        'Compare and swap pairs starting at index one.',
+        'Compare and swap pairs starting at index zero.',
+        'If either phase swapped, repeat both phases.',
+        'Stop after a full odd/even round with no swaps.',
+      ],
+      complexity: { best: 'O(n)', worst: 'O(n²)', average: 'O(n²)', space: 'O(1)' },
+      code: `def odd_even_sort(arr: list[int]) -> list[int]:
+    """Sort by alternating odd and even adjacent pair passes."""
+    result = arr.copy()
+    sorted_pass = False
+    while not sorted_pass:
+        sorted_pass = True
+        for i in range(1, len(result) - 1, 2):
+            if result[i] > result[i + 1]:
+                result[i], result[i + 1] = result[i + 1], result[i]
+                sorted_pass = False
+        for i in range(0, len(result) - 1, 2):
+            if result[i] > result[i + 1]:
+                result[i], result[i + 1] = result[i + 1], result[i]
+                sorted_pass = False
+    return result`,
+    },
+  },
+  {
+    key: 'cycle',
+    category: 'Additional Algorithms',
+    name: 'Cycle Sort',
+    tooltip: 'O(n²) — minimizes array writes by rotating cycles',
+    gen: cycle,
+    docs: {
+      description:
+        'An in-place comparison sort designed to minimize writes. It counts how many values are smaller than the current item to find its final position, writes it there, then keeps rotating displaced items until the cycle closes.',
+      steps: [
+        'Pick the start of the next cycle.',
+        'Count smaller values to find the item’s final position.',
+        'Write the item there, displacing the previous occupant.',
+        'Repeat with displaced items until the cycle returns to the start.',
+      ],
+      complexity: { best: 'O(n²)', worst: 'O(n²)', average: 'O(n²)', space: 'O(1)' },
+      code: `def cycle_sort(arr: list[int]) -> list[int]:
+    """Sort in place while minimizing writes."""
+    result = arr.copy()
+    n = len(result)
+    for cycle_start in range(n - 1):
+        item = result[cycle_start]
+        pos = cycle_start
+        for i in range(cycle_start + 1, n):
+            if result[i] < item:
+                pos += 1
+        if pos == cycle_start:
+            continue
+        while item == result[pos]:
+            pos += 1
+        result[pos], item = item, result[pos]
+        while pos != cycle_start:
+            pos = cycle_start
+            for i in range(cycle_start + 1, n):
+                if result[i] < item:
+                    pos += 1
+            while item == result[pos]:
+                pos += 1
+            result[pos], item = item, result[pos]
+    return result`,
     },
   },
   {
