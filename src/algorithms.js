@@ -260,35 +260,151 @@ function* quick(a) {
   yield* sweep(a);
 }
 
-function* insertionRange(a, lo, hi) {
-  for (let i = lo + 1; i < hi; i++) {
-    const key = a[i];
-    let j = i - 1;
-    while (j >= lo) {
-      yield compare(j, j + 1);
-      if (a[j] > key) {
-        yield* write(a, j + 1, a[j]);
-        j--;
-      } else break;
-    }
-    yield* write(a, j + 1, key);
+// Faithful Timsort: natural run detection, minrun-padded binary insertion
+// sort, and a run stack merged under Timsort's size invariants. (Galloping
+// mode is omitted — it is an optimization, not part of correctness.)
+
+const MIN_MERGE = 32;
+
+function minRunLength(n) {
+  let r = 0;
+  while (n >= MIN_MERGE) {
+    r |= n & 1;
+    n >>= 1;
+  }
+  return n + r;
+}
+
+function* reverseRange(a, lo, hi) {
+  hi--;
+  while (lo < hi) {
+    yield* swap(a, lo, hi);
+    lo++;
+    hi--;
   }
 }
 
-// Simplified Timsort: insertion-sort small runs, then merge runs pairwise.
-function* tim(a) {
-  const n = a.length;
-  const RUN = 32;
-  for (let start = 0; start < n; start += RUN) {
-    yield* insertionRange(a, start, Math.min(start + RUN, n));
-  }
-  for (let size = RUN; size < n; size *= 2) {
-    for (let lo = 0; lo < n; lo += 2 * size) {
-      const mid = Math.min(lo + size, n);
-      const hi = Math.min(lo + 2 * size, n);
-      if (mid < hi) yield* mergeRange(a, lo, mid, hi);
+// Find the run starting at lo, flip it ascending if descending; return length.
+function* countRunAndMakeAscending(a, lo, hi) {
+  let runHi = lo + 1;
+  if (runHi === hi) return 1;
+  yield compare(runHi, lo);
+  if (a[runHi++] < a[lo]) {
+    while (runHi < hi) {
+      yield compare(runHi, runHi - 1);
+      if (a[runHi] < a[runHi - 1]) runHi++;
+      else break;
+    }
+    yield* reverseRange(a, lo, runHi);
+  } else {
+    while (runHi < hi) {
+      yield compare(runHi, runHi - 1);
+      if (a[runHi] >= a[runHi - 1]) runHi++;
+      else break;
     }
   }
+  return runHi - lo;
+}
+
+// Extend a sorted prefix [lo, start) to [lo, hi) using binary insertion.
+function* binaryInsertionSort(a, lo, hi, start) {
+  if (start === lo) start++;
+  for (; start < hi; start++) {
+    const pivot = a[start];
+    let left = lo;
+    let right = start;
+    while (left < right) {
+      const mid = (left + right) >>> 1;
+      yield compare(start, mid);
+      if (pivot < a[mid]) right = mid;
+      else left = mid + 1;
+    }
+    for (let i = start; i > left; i--) yield* write(a, i, a[i - 1]);
+    yield* write(a, left, pivot);
+  }
+}
+
+// Stable merge of two adjacent runs via a copy of the (smaller) left run.
+function* mergeRuns(a, base1, len1, base2, len2) {
+  const hi = base2 + len2;
+  yield range(base1, hi - 1);
+  const left = a.slice(base1, base1 + len1);
+  let i = 0;
+  let j = base2;
+  let k = base1;
+  while (i < len1 && j < hi) {
+    yield compare(k, j);
+    if (left[i] <= a[j]) yield* write(a, k++, left[i++]);
+    else yield* write(a, k++, a[j++]);
+    yield range(base1, hi - 1);
+  }
+  while (i < len1) yield* write(a, k++, left[i++]);
+}
+
+function* mergeAt(a, runBase, runLen, i) {
+  const base1 = runBase[i];
+  const len1 = runLen[i];
+  const base2 = runBase[i + 1];
+  const len2 = runLen[i + 1];
+  runLen[i] = len1 + len2;
+  runBase.splice(i + 1, 1);
+  runLen.splice(i + 1, 1);
+  yield* mergeRuns(a, base1, len1, base2, len2);
+}
+
+function* mergeCollapse(a, runBase, runLen) {
+  while (runLen.length > 1) {
+    let n = runLen.length - 2;
+    if (
+      (n > 0 && runLen[n - 1] <= runLen[n] + runLen[n + 1]) ||
+      (n > 1 && runLen[n - 2] <= runLen[n - 1] + runLen[n])
+    ) {
+      if (runLen[n - 1] < runLen[n + 1]) n--;
+      yield* mergeAt(a, runBase, runLen, n);
+    } else if (runLen[n] <= runLen[n + 1]) {
+      yield* mergeAt(a, runBase, runLen, n);
+    } else break;
+  }
+}
+
+function* mergeForceCollapse(a, runBase, runLen) {
+  while (runLen.length > 1) {
+    let n = runLen.length - 2;
+    if (n > 0 && runLen[n - 1] < runLen[n + 1]) n--;
+    yield* mergeAt(a, runBase, runLen, n);
+  }
+}
+
+function* tim(a) {
+  const n = a.length;
+  if (n < 2) return;
+  if (n < MIN_MERGE) {
+    const runLen = yield* countRunAndMakeAscending(a, 0, n);
+    yield* binaryInsertionSort(a, 0, n, runLen);
+    yield* sweep(a);
+    return;
+  }
+
+  const runBase = [];
+  const runLen = [];
+  const minRun = minRunLength(n);
+  let low = 0;
+  let remaining = n;
+  do {
+    let runLength = yield* countRunAndMakeAscending(a, low, n);
+    if (runLength < minRun) {
+      const force = Math.min(remaining, minRun);
+      yield* binaryInsertionSort(a, low, low + force, low + runLength);
+      runLength = force;
+    }
+    runBase.push(low);
+    runLen.push(runLength);
+    yield* mergeCollapse(a, runBase, runLen);
+    low += runLength;
+    remaining -= runLength;
+  } while (remaining !== 0);
+
+  yield* mergeForceCollapse(a, runBase, runLen);
   yield* sweep(a);
 }
 
@@ -347,6 +463,7 @@ function* bogo(a, cap = 5000) {
 export const algorithms = [
   {
     key: 'bubble',
+    category: 'Simple — O(n²)',
     name: 'Bubble Sort',
     tooltip: 'O(n²) — compares adjacent elements and swaps if out of order',
     gen: bubble,
@@ -380,6 +497,7 @@ export const algorithms = [
   },
   {
     key: 'insertion',
+    category: 'Simple — O(n²)',
     name: 'Insertion Sort',
     tooltip: 'O(n²) — builds the sorted list one element at a time',
     gen: insertion,
@@ -412,6 +530,7 @@ export const algorithms = [
   },
   {
     key: 'selection',
+    category: 'Simple — O(n²)',
     name: 'Selection Sort',
     tooltip: 'O(n²) — repeatedly selects the minimum element',
     gen: selection,
@@ -442,6 +561,7 @@ export const algorithms = [
   },
   {
     key: 'cocktail',
+    category: 'Simple — O(n²)',
     name: 'Cocktail Shaker Sort',
     tooltip: 'O(n²) — bidirectional bubble sort',
     gen: cocktail,
@@ -479,6 +599,7 @@ export const algorithms = [
   },
   {
     key: 'comb',
+    category: 'Simple — O(n²)',
     name: 'Comb Sort',
     tooltip: 'O(n²) worst — bubble sort with shrinking gap',
     gen: comb,
@@ -513,6 +634,7 @@ export const algorithms = [
   },
   {
     key: 'shell',
+    category: 'Efficient — O(n log n)',
     name: 'Shell Sort',
     tooltip: 'O(n log²n) — gapped insertion sort',
     gen: shell,
@@ -547,6 +669,7 @@ export const algorithms = [
   },
   {
     key: 'merge',
+    category: 'Efficient — O(n log n)',
     name: 'Merge Sort',
     tooltip: 'O(n log n) — divides and merges sorted halves',
     gen: merge,
@@ -588,6 +711,7 @@ def merge(left: list[int], right: list[int]) -> list[int]:
   },
   {
     key: 'quick',
+    category: 'Efficient — O(n log n)',
     name: 'Quick Sort',
     tooltip: 'O(n log n) avg — partitions around a pivot',
     gen: quick,
@@ -627,6 +751,7 @@ def partition(arr: list[int], low: int, high: int) -> int:
   },
   {
     key: 'heap',
+    category: 'Efficient — O(n log n)',
     name: 'Heap Sort',
     tooltip: 'O(n log n) — sorts via a binary max-heap',
     gen: heap,
@@ -669,44 +794,57 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
   },
   {
     key: 'tim',
+    category: 'Efficient — O(n log n)',
     name: 'Tim Sort',
     tooltip: 'O(n log n) — insertion-sorted runs merged together',
     gen: tim,
     docs: {
       description:
-        'A hybrid, stable sort (the standard sort in Python and Java) that combines insertion sort and merge sort. It insertion-sorts small fixed-size "runs", then merges runs pairwise in widening passes. This shows a simplified version with fixed 32-element runs.',
+        'A hybrid, stable sort — the standard library sort in Python and Java. It finds naturally ordered "runs" in the data, pads short runs to a minimum length with binary insertion sort, then merges runs off a stack while maintaining size invariants that keep merges balanced. It is adaptive: existing order in the input makes it approach O(n).',
       steps: [
-        'Split the array into runs of a fixed size (here, 32).',
-        'Insertion-sort each run in place.',
-        'Merge adjacent runs into sorted blocks.',
-        'Double the block size and merge again.',
-        'Repeat until one sorted block remains.',
+        'Compute a minimum run length from the array size.',
+        'Scan for the next natural run, reversing it if it descends.',
+        'Pad runs shorter than minrun using binary insertion sort.',
+        'Push each run on a stack and merge while size invariants are violated.',
+        'Force-merge the remaining runs into one sorted array.',
       ],
       complexity: { best: 'O(n)', worst: 'O(n log n)', average: 'O(n log n)', space: 'O(n)' },
-      code: `RUN = 32
+      code: `MIN_MERGE = 32
 
 def tim_sort(arr: list[int]) -> list[int]:
-    """Simplified Timsort: insertion-sort runs, then merge them."""
+    """Timsort: detect runs, pad to minrun, merge under size invariants."""
     result = arr.copy()
     n = len(result)
+    if n < 2:
+        return result
 
-    for start in range(0, n, RUN):
-        insertion_range(result, start, min(start + RUN, n))
+    min_run = min_run_length(n)
+    runs = []  # stack of (base, length)
+    low = 0
+    while low < n:
+        run_len = count_run_and_make_ascending(result, low, n)
+        if run_len < min_run:
+            force = min(n - low, min_run)
+            binary_insertion_sort(result, low, low + force, low + run_len)
+            run_len = force
+        runs.append((low, run_len))
+        merge_collapse(result, runs)
+        low += run_len
 
-    size = RUN
-    while size < n:
-        for lo in range(0, n, 2 * size):
-            mid = min(lo + size, n)
-            hi = min(lo + 2 * size, n)
-            if mid < hi:
-                merge_range(result, lo, mid, hi)
-        size *= 2
+    merge_force_collapse(result, runs)
+    return result
 
-    return result`,
+def min_run_length(n: int) -> int:
+    r = 0
+    while n >= MIN_MERGE:
+        r |= n & 1
+        n >>= 1
+    return n + r`,
     },
   },
   {
     key: 'radix',
+    category: 'Non-comparison',
     name: 'Radix Sort',
     tooltip: 'O(d × n) — sorts digit by digit',
     gen: radix,
@@ -751,6 +889,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'counting',
+    category: 'Non-comparison',
     name: 'Counting Sort',
     tooltip: 'O(n + k) — counts occurrences of each value',
     gen: counting,
@@ -785,6 +924,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'bogo',
+    category: 'For fun',
     name: 'Bogo Sort',
     tooltip: 'O(n × n!) — shuffles until sorted (joke algorithm)',
     gen: bogo,

@@ -41,16 +41,40 @@ export function highlightPython(code) {
 
 // --- toolbar -----------------------------------------------------------------
 
+// Preserve registry order while collecting each category's algorithms.
+function groupByCategory(list) {
+  const groups = new Map();
+  for (const algo of list) {
+    if (!groups.has(algo.category)) groups.set(algo.category, []);
+    groups.get(algo.category).push(algo);
+  }
+  return groups;
+}
+
 export function buildAlgorithmButtons(container, onSelect) {
   container.innerHTML = '';
-  for (const algo of algorithms) {
-    const button = document.createElement('button');
-    button.className = 'algo-button tooltip';
-    button.textContent = algo.name;
-    button.dataset.tooltip = algo.tooltip;
-    button.dataset.algorithm = algo.key;
-    button.addEventListener('click', () => onSelect(algo.key));
-    container.appendChild(button);
+  for (const [category, items] of groupByCategory(algorithms)) {
+    const group = document.createElement('div');
+    group.className = 'algo-group';
+
+    const label = document.createElement('span');
+    label.className = 'algo-group-label';
+    label.textContent = category;
+    group.appendChild(label);
+
+    const chips = document.createElement('div');
+    chips.className = 'algo-chips';
+    for (const algo of items) {
+      const button = document.createElement('button');
+      button.className = 'algo-button tooltip';
+      button.textContent = algo.name.replace(/ Sort$/, '');
+      button.dataset.tooltip = algo.tooltip;
+      button.dataset.algorithm = algo.key;
+      button.addEventListener('click', () => onSelect(algo.key));
+      chips.appendChild(button);
+    }
+    group.appendChild(chips);
+    container.appendChild(group);
   }
 }
 
@@ -104,10 +128,16 @@ function sectionHtml(algo) {
 export function buildModal({ sidebar, content }, onRunPreset) {
   sidebar.innerHTML =
     '<h3>Algorithms</h3>' +
-    algorithms
+    [...groupByCategory(algorithms)]
       .map(
-        (a) =>
-          `<button class="sidebar-item" data-algorithm="${a.key}">${a.name}</button>`
+        ([category, items]) =>
+          `<p class="sidebar-group">${category}</p>` +
+          items
+            .map(
+              (a) =>
+                `<button class="sidebar-item" data-algorithm="${a.key}">${a.name}</button>`
+            )
+            .join('')
       )
       .join('');
 

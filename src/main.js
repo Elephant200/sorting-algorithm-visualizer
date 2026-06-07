@@ -92,6 +92,12 @@ function currentTimeSec() {
 
 const isBogo = () => state.algorithm === 'bogo';
 
+function setActiveButton(key) {
+  dom.algoButtons.querySelectorAll('.algo-button').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.algorithm === key);
+  });
+}
+
 function renderFrame() {
   renderer.frame(engine.array, engine.sorted, engine.currentOp());
   renderer.setStats(engine.stats, currentTimeSec(), isBogo());
@@ -159,6 +165,7 @@ function regenerate() {
   state.baseArray = generateArray(state.size, state.distribution);
   state.algorithm = null;
   state.elapsedMs = 0;
+  setActiveButton(null);
   engine.record(() => [].values(), state.baseArray); // empty recording
   renderer.setArray(state.baseArray);
   renderer.clearHighlights(state.baseArray, engine.sorted);
@@ -173,6 +180,7 @@ function runAlgorithm(key, array = state.baseArray) {
   state.algorithm = key;
   state.baseArray = array;
   state.elapsedMs = 0;
+  setActiveButton(key);
   engine.record(algorithmsByKey[key].gen, array);
   renderer.setArray(array);
   renderFrame();
