@@ -260,7 +260,10 @@ function sectionHtml(algo) {
 
   return `
     <section class="algorithm-section" id="section-${algo.key}">
-      <h3 class="section-title">${algo.name}</h3>
+      <div class="section-heading-row">
+        <h3 class="section-title">${algo.name}</h3>
+        <button class="back-to-summary" type="button" aria-label="Back to summary" title="Back to summary">▲</button>
+      </div>
       <div class="run-buttons">
         <button class="run-button random tooltip" ${caseButtonAttrs(algo, 'random')}>
           <i class="fas fa-random"></i> Run Random</button>
@@ -289,6 +292,7 @@ export function buildModal({ sidebar, content }, onRunPreset) {
   setupFloatingTooltips();
   sidebar.innerHTML =
     '<h3>Algorithms</h3>' +
+    '<button class="sidebar-item sidebar-summary active" data-summary="true">Summary</button>' +
     [...groupByCategory(algorithms)]
       .map(
         ([category, items]) =>
@@ -315,9 +319,19 @@ export function buildModal({ sidebar, content }, onRunPreset) {
     section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const scrollToSummary = () => {
+    content.querySelector('.algorithm-overview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   content.querySelectorAll('.overview-name').forEach((item) => {
     item.addEventListener('click', () => scrollToAlgorithm(item.dataset.algorithm));
   });
+
+  content.querySelectorAll('.back-to-summary').forEach((item) => {
+    item.addEventListener('click', scrollToSummary);
+  });
+
+  sidebar.querySelector('.sidebar-summary')?.addEventListener('click', scrollToSummary);
 
   // Sidebar click -> smooth scroll to section.
   sidebar.querySelectorAll('.sidebar-item').forEach((item) => {
@@ -331,8 +345,9 @@ export function buildModal({ sidebar, content }, onRunPreset) {
     content.querySelectorAll('.algorithm-section').forEach((s) => {
       if (s.offsetTop <= pos) active = s.id.replace('section-', '');
     });
+    sidebar.querySelector('.sidebar-summary')?.classList.toggle('active', active === null);
     sidebar.querySelectorAll('.sidebar-item').forEach((item) => {
-      item.classList.toggle('active', item.dataset.algorithm === active);
+      if (!item.dataset.summary) item.classList.toggle('active', item.dataset.algorithm === active);
     });
   });
 }

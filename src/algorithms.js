@@ -1039,17 +1039,18 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'gnome',
-    category: 'Additional Algorithms',
+    category: 'For fun',
     name: 'Gnome Sort',
-    tooltip: 'O(n²) — walks backward swapping local inversions',
+    tooltip: 'O(n²) — insertion sort expressed as a wandering swap walk',
     gen: gnome,
     docs: {
       description:
-        'A tiny comparison sort similar in spirit to insertion sort. It walks forward while adjacent items are ordered, swaps when it finds an inversion, then steps backward to repair earlier order. Its simplicity makes it easy to visualize, but it is quadratic on messy data.',
+        'A deliberately awkward cousin of insertion sort. Insertion sort shifts a selected value left into a sorted prefix; gnome sort does the same local repair by repeatedly swapping adjacent inverted pairs and walking backward one step at a time. It is charmingly small and easy to animate, but it performs insertion sort’s idea with more shuffling around.',
       steps: [
-        'Start at the second element.',
-        'If the previous pair is ordered, step forward.',
-        'If the pair is inverted, swap it and step backward.',
+        'Start at the second element, just after the sorted prefix.',
+        'If the adjacent pair is ordered, walk one step right.',
+        'If the pair is inverted, swap it and walk one step left.',
+        'This backward walk inserts the value into the prefix, one adjacent swap at a time.',
         'Repeat until the walk reaches the end.',
       ],
       complexity: { best: 'O(n)', worst: 'O(n²)', average: 'O(n²)', space: 'O(1)' },
@@ -1070,14 +1071,14 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     key: 'odd-even',
     category: 'Additional Algorithms',
     name: 'Odd-Even Sort',
-    tooltip: 'O(n²) — alternates odd and even adjacent passes',
+    tooltip: 'O(n²) — bubble sort split into odd/even phases',
     gen: oddEven,
     docs: {
       description:
-        'A bubble-sort relative that alternates between comparing odd-indexed pairs and even-indexed pairs. It is useful as a teaching example because those phases can run in parallel, though this visualizer records them sequentially.',
+        'A variation of bubble sort, also called brick sort. Bubble sort sweeps through every adjacent pair in order; odd-even sort splits that sweep into two phases: odd-indexed adjacent pairs, then even-indexed adjacent pairs. That split is useful for parallel hardware or teaching networks, though this visualizer records the phases sequentially.',
       steps: [
-        'Compare and swap pairs starting at index one.',
-        'Compare and swap pairs starting at index zero.',
+        'Compare and swap odd-indexed adjacent pairs.',
+        'Compare and swap even-indexed adjacent pairs.',
         'If either phase swapped, repeat both phases.',
         'Stop after a full odd/even round with no swaps.',
       ],

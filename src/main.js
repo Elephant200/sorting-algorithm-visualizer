@@ -187,15 +187,19 @@ function stepOnce(forward) {
 function regenerate() {
   pause();
   state.baseArray = generateArray(state.size, state.distribution);
-  state.algorithm = null;
   state.elapsedMs = 0;
-  setActiveButton(null);
-  engine.record(() => [].values(), state.baseArray); // empty recording
   renderer.setArray(state.baseArray);
-  renderer.clearHighlights(state.baseArray, engine.sorted);
-  renderer.setStats(engine.stats, 0, false);
-  dom.progress.textContent = '0%';
-  dom.status.textContent = 'Pick an algorithm';
+  if (state.algorithm) {
+    engine.record(algorithmsByKey[state.algorithm].gen, state.baseArray);
+    renderFrame();
+  } else {
+    setActiveButton(null);
+    engine.record(() => [].values(), state.baseArray); // empty recording
+    renderer.clearHighlights(state.baseArray, engine.sorted);
+    renderer.setStats(engine.stats, 0, false);
+    dom.progress.textContent = '0%';
+    dom.status.textContent = 'Pick an algorithm';
+  }
 }
 
 function runAlgorithm(key, array = state.baseArray) {

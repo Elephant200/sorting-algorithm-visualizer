@@ -534,7 +534,7 @@ button:disabled {
 
 .modal-container {
   display: flex;
-  width: min(94%, 1080px);
+  width: min(96%, 1240px);
   height: min(88vh, 780px);
   background: var(--bg-1);
   border: 1px solid var(--border);
@@ -650,6 +650,38 @@ button:disabled {
   font-weight: 700;
   color: var(--sand-bright);
   margin-bottom: 18px;
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-heading-row .section-title {
+  margin-bottom: 0;
+}
+
+.back-to-summary {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+
+.back-to-summary:hover {
+  color: var(--sand-bright);
+  border-color: var(--sand-deep);
+  background: var(--bg-3);
 }
 
 .algorithm-overview {
