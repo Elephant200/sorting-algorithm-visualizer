@@ -58,6 +58,16 @@ export function buildAlgorithmButtons(container, onSelect) {
   const mainAlgorithms = algorithms.filter((algo) => MAIN_ALGORITHMS.has(algo.key));
   const moreAlgorithms = algorithms.filter((algo) => !MAIN_ALGORITHMS.has(algo.key));
 
+  const makeAlgorithmButton = (algo) => {
+    const button = document.createElement('button');
+    button.className = 'algo-button tooltip';
+    button.textContent = algo.name.replace(/ Sort$/, '');
+    button.dataset.tooltip = algo.tooltip;
+    button.dataset.algorithm = algo.key;
+    button.addEventListener('click', () => onSelect(algo.key));
+    return button;
+  };
+
   const appendGroups = (parent, list) => {
     for (const [category, items] of groupByCategory(list)) {
       const group = document.createElement('div');
@@ -71,13 +81,7 @@ export function buildAlgorithmButtons(container, onSelect) {
       const chips = document.createElement('div');
       chips.className = 'algo-chips';
       for (const algo of items) {
-        const button = document.createElement('button');
-        button.className = 'algo-button tooltip';
-        button.textContent = algo.name.replace(/ Sort$/, '');
-        button.dataset.tooltip = algo.tooltip;
-        button.dataset.algorithm = algo.key;
-        button.addEventListener('click', () => onSelect(algo.key));
-        chips.appendChild(button);
+        chips.appendChild(makeAlgorithmButton(algo));
       }
       group.appendChild(chips);
       parent.appendChild(group);
@@ -86,20 +90,73 @@ export function buildAlgorithmButtons(container, onSelect) {
 
   appendGroups(container, mainAlgorithms);
 
-  const more = document.createElement('details');
-  more.className = 'more-algorithms';
-  const summary = document.createElement('summary');
-  summary.textContent = 'More algorithms';
-  more.appendChild(summary);
+  const toggle = document.createElement('button');
+  toggle.className = 'more-toggle tooltip';
+  toggle.type = 'button';
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', 'more-algorithms-panel');
+  toggle.setAttribute('aria-label', 'Show more algorithms');
+  toggle.dataset.tooltip = 'Show more algorithms';
+  toggle.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i>';
+  container.appendChild(toggle);
 
   const moreContent = document.createElement('div');
   moreContent.className = 'more-algorithms-content';
+  moreContent.id = 'more-algorithms-panel';
   appendGroups(moreContent, moreAlgorithms);
-  more.appendChild(moreContent);
-  container.appendChild(more);
+  container.appendChild(moreContent);
+
+  toggle.addEventListener('click', () => {
+    const open = !moreContent.classList.contains('open');
+    moreContent.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Hide more algorithms' : 'Show more algorithms');
+    toggle.dataset.tooltip = open ? 'Hide more algorithms' : 'Show more algorithms';
+  });
 }
 
 // --- docs modal --------------------------------------------------------------
+
+function briefPhrase(algo) {
+  return algo.tooltip.replace(/^.*?—\s*/, '');
+}
+
+function overviewHtml() {
+  const rows = algorithms
+    .map((algo) => {
+      const { complexity } = algo.docs;
+      return `
+        <tr>
+          <th scope="row">
+            <button class="overview-name" data-algorithm="${algo.key}">${algo.name}</button>
+          </th>
+          <td>${escapeHtml(briefPhrase(algo))}</td>
+          <td><button class="complexity-run" data-algorithm="${algo.key}" data-case="best">${complexity.best}</button></td>
+          <td><button class="complexity-run" data-algorithm="${algo.key}" data-case="random">${complexity.average}</button></td>
+          <td><button class="complexity-run" data-algorithm="${algo.key}" data-case="worst">${complexity.worst}</button></td>
+        </tr>`;
+    })
+    .join('');
+
+  return `
+    <section class="algorithm-overview" aria-label="Algorithm overview">
+      <h3 class="section-title">At a Glance</h3>
+      <div class="overview-table-wrap">
+        <table class="overview-table">
+          <thead>
+            <tr>
+              <th scope="col">Algorithm</th>
+              <th scope="col">Idea</th>
+              <th scope="col">Best</th>
+              <th scope="col">Average</th>
+              <th scope="col">Worst</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
 
 function sectionHtml(algo) {
   const { docs } = algo;
@@ -162,20 +219,26 @@ export function buildModal({ sidebar, content }, onRunPreset) {
       )
       .join('');
 
-  content.innerHTML = algorithms.map(sectionHtml).join('');
+  content.innerHTML = overviewHtml() + algorithms.map(sectionHtml).join('');
 
-  content.querySelectorAll('.run-button').forEach((btn) => {
+  content.querySelectorAll('.run-button, .complexity-run').forEach((btn) => {
     btn.addEventListener('click', () =>
       onRunPreset(btn.dataset.algorithm, btn.dataset.case)
     );
   });
 
+  const scrollToAlgorithm = (key) => {
+    const section = content.querySelector(`#section-${key}`);
+    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  content.querySelectorAll('.overview-name').forEach((item) => {
+    item.addEventListener('click', () => scrollToAlgorithm(item.dataset.algorithm));
+  });
+
   // Sidebar click -> smooth scroll to section.
   sidebar.querySelectorAll('.sidebar-item').forEach((item) => {
-    item.addEventListener('click', () => {
-      const section = content.querySelector(`#section-${item.dataset.algorithm}`);
-      section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    item.addEventListener('click', () => scrollToAlgorithm(item.dataset.algorithm));
   });
 
   // Scroll spy -> highlight the active sidebar item.

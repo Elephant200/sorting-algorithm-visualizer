@@ -17,43 +17,49 @@
       <p class="subtitle">Watch and step through classic sorting algorithms.</p>
     </header>
 
-    <div class="top-panel">
-      <!-- Setup and playback controls -->
-      <div class="controls setup-controls">
-        <label class="control-group">
-          <span>Size</span>
-          <input type="number" id="size-input" min="3" max="300">
-        </label>
-        <button class="ghost-button compact-button" id="size-update">Set</button>
+    <!-- Settings controls -->
+    <div class="controls settings-row">
+      <label class="control-group">
+        <span>Size</span>
+        <input type="number" id="size-input" min="3" max="300">
+      </label>
+      <button class="ghost-button compact-button" id="size-update">Set</button>
 
-        <label class="control-group">
-          <span>Distribution</span>
-          <select id="distribution"></select>
-        </label>
+      <label class="control-group">
+        <span>Distribution</span>
+        <select id="distribution"></select>
+      </label>
 
-        <button class="ghost-button" id="new-array"><i class="fas fa-shuffle" aria-hidden="true"></i> New Array</button>
-        <button class="ghost-button" id="more-info"><i class="fas fa-circle-info" aria-hidden="true"></i> Algorithms &amp; Docs</button>
-      </div>
+      <label class="control-group slider-group">
+        <span>Speed</span>
+        <input type="range" id="speed" min="0" max="100" value="55">
+      </label>
 
-      <div class="controls playback-controls">
-        <div class="transport" aria-label="Playback controls">
-          <button id="step-back" title="Step back" aria-label="Step back"><i class="fas fa-backward-step" aria-hidden="true"></i></button>
-          <button id="play-pause" class="primary" title="Play / pause" aria-label="Play / pause"><i class="fas fa-play" aria-hidden="true"></i></button>
-          <button id="step-forward" title="Step forward" aria-label="Step forward"><i class="fas fa-forward-step" aria-hidden="true"></i></button>
-        </div>
-
-        <label class="control-group slider-group">
-          <span>Speed</span>
-          <input type="range" id="speed" min="0" max="100" value="55">
-        </label>
-
-        <span class="progress" id="progress">0%</span>
-        <span class="status" id="status" aria-live="polite">Pick an algorithm</span>
-      </div>
+      <button class="ghost-button" id="new-array"><i class="fas fa-shuffle" aria-hidden="true"></i> New Array</button>
+      <button class="ghost-button" id="more-info"><i class="fas fa-circle-info" aria-hidden="true"></i> Algorithms &amp; Docs</button>
     </div>
 
     <!-- Algorithm picker -->
     <div class="controls algo-toolbar" id="algo-buttons"></div>
+
+    <!-- Playback controls -->
+    <div class="controls playback-controls">
+      <div class="transport" aria-label="Playback controls">
+        <button id="step-back" title="Step back" aria-label="Step back"><i class="fas fa-backward-step" aria-hidden="true"></i></button>
+        <button id="play-pause" class="primary" title="Play / pause" aria-label="Play / pause"><i class="fas fa-play" aria-hidden="true"></i></button>
+        <button id="step-forward" title="Step forward" aria-label="Step forward"><i class="fas fa-forward-step" aria-hidden="true"></i></button>
+      </div>
+
+      <span class="progress" id="progress">0%</span>
+      <span class="status" id="status" aria-live="polite">Pick an algorithm</span>
+
+      <div id="stats-panel" class="inline-stats" aria-label="Statistics">
+        <p class="stat-row compare"><span class="stat-label">Comparisons</span><span id="stat-comparisons">0</span></p>
+        <p class="stat-row write"><span class="stat-label">Writes</span><span id="stat-writes">0</span></p>
+        <p class="stat-row shuffle"><span class="stat-label">Shuffles</span><span id="stat-shuffles">0</span></p>
+        <p class="stat-row"><span class="stat-label">Time</span><span><span id="stat-time">0.00</span>s</span></p>
+      </div>
+    </div>
 
     <!-- Color legend -->
     <div class="legend">
@@ -63,17 +69,7 @@
       <span class="legend-item"><i class="swatch sorted"></i> Sorted</span>
     </div>
 
-    <div class="main-content">
-      <div id="array-container"></div>
-
-      <aside id="stats-panel">
-        <h3>Statistics</h3>
-        <p class="stat-row compare"><span class="stat-label">Comparisons</span><span id="stat-comparisons">0</span></p>
-        <p class="stat-row write"><span class="stat-label">Array Writes</span><span id="stat-writes">0</span></p>
-        <p class="stat-row shuffle"><span class="stat-label">Shuffles</span><span id="stat-shuffles">0</span></p>
-        <p class="stat-row"><span class="stat-label">Time</span><span><span id="stat-time">0.00</span>s</span></p>
-      </aside>
-    </div>
+    <div id="array-container"></div>
   </div>
 
   <!-- Algorithm docs modal -->
