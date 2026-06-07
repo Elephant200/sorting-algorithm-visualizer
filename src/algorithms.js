@@ -550,7 +550,7 @@ export const algorithms = [
   },
   {
     key: 'cocktail',
-    category: 'Simple — O(n²)',
+    category: 'Optimized Variants',
     name: 'Cocktail Shaker Sort',
     tooltip: 'O(n²) — bidirectional bubble sort',
     gen: cocktail,
@@ -588,7 +588,7 @@ export const algorithms = [
   },
   {
     key: 'comb',
-    category: 'Simple — O(n²)',
+    category: 'Optimized Variants',
     name: 'Comb Sort',
     tooltip: 'O(n²) worst — bubble sort with shrinking gap',
     gen: comb,
@@ -623,7 +623,7 @@ export const algorithms = [
   },
   {
     key: 'shell',
-    category: 'Efficient — O(n log n)',
+    category: 'Optimized Variants',
     name: 'Shell Sort',
     tooltip: 'O(n log²n) — gapped insertion sort',
     gen: shell,
@@ -783,7 +783,7 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
   },
   {
     key: 'tim',
-    category: 'Efficient — O(n log n)',
+    category: 'Optimized Variants',
     name: 'Tim Sort',
     tooltip: 'O(n log n) — insertion-sorted runs merged together',
     gen: tim,
