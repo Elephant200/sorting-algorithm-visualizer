@@ -260,10 +260,7 @@ function sectionHtml(algo) {
 
   return `
     <section class="algorithm-section" id="section-${algo.key}">
-      <div class="section-heading-row">
-        <h3 class="section-title">${algo.name}</h3>
-        <button class="back-to-summary" type="button" aria-label="Back to summary" title="Back to summary">▲</button>
-      </div>
+      <h3 class="section-title">${algo.name}</h3>
       <div class="run-buttons">
         <button class="run-button random tooltip" ${caseButtonAttrs(algo, 'random')}>
           <i class="fas fa-random"></i> Run Random</button>
@@ -327,10 +324,17 @@ export function buildModal({ sidebar, content }, onRunPreset) {
     item.addEventListener('click', () => scrollToAlgorithm(item.dataset.algorithm));
   });
 
-  content.querySelectorAll('.back-to-summary').forEach((item) => {
-    item.addEventListener('click', scrollToSummary);
-  });
+  const scrollTopBtn = content
+    .closest('.modal-content-wrap')
+    ?.querySelector('.modal-scroll-top');
 
+  const updateScrollTopBtn = () => {
+    const show = content.scrollTop > 200;
+    scrollTopBtn?.classList.toggle('visible', show);
+    if (scrollTopBtn) scrollTopBtn.hidden = !show;
+  };
+
+  scrollTopBtn?.addEventListener('click', scrollToSummary);
   sidebar.querySelector('.sidebar-summary')?.addEventListener('click', scrollToSummary);
 
   // Sidebar click -> smooth scroll to section.
@@ -338,8 +342,10 @@ export function buildModal({ sidebar, content }, onRunPreset) {
     item.addEventListener('click', () => scrollToAlgorithm(item.dataset.algorithm));
   });
 
-  // Scroll spy -> highlight the active sidebar item.
+  // Scroll spy -> highlight the active sidebar item and toggle back-to-top.
   content.addEventListener('scroll', () => {
+    updateScrollTopBtn();
+
     const pos = content.scrollTop + 160;
     let active = null;
     content.querySelectorAll('.algorithm-section').forEach((s) => {

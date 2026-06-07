@@ -252,6 +252,7 @@ function updateSize() {
 function openModal() {
   dom.modalOverlay.classList.add('active');
   document.body.style.overflow = 'hidden';
+  dom.modalContent.dispatchEvent(new Event('scroll'));
 }
 
 function closeModal() {

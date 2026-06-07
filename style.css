@@ -595,6 +595,7 @@ button:disabled {
 }
 
 .modal-content-wrap {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -652,38 +653,6 @@ button:disabled {
   margin-bottom: 18px;
 }
 
-.section-heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.section-heading-row .section-title {
-  margin-bottom: 0;
-}
-
-.back-to-summary {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--bg-2);
-  border-color: var(--border);
-  color: var(--text-dim);
-  font-size: 0.78rem;
-}
-
-.back-to-summary:hover {
-  color: var(--sand-bright);
-  border-color: var(--sand-deep);
-  background: var(--bg-3);
-}
-
 .algorithm-overview {
   padding-bottom: 28px;
   margin-bottom: 32px;
@@ -728,7 +697,7 @@ button:disabled {
 .overview-table th:nth-child(5),
 .overview-table td:nth-child(3),
 .overview-table td:nth-child(4),
-.overview-table td:nth-child(5) { width: 110px; text-align: center; }
+.overview-table td:nth-child(5) { width: 136px; text-align: center; }
 
 .overview-table thead th {
   color: var(--text-muted);
@@ -762,6 +731,43 @@ button:disabled {
 .complexity-run:hover {
   background: var(--bg-2);
   border-color: var(--sand-deep);
+}
+
+.modal-scroll-top {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-sm);
+  z-index: 3;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease,
+    color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.modal-scroll-top.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.modal-scroll-top:hover {
+  color: var(--sand-bright);
+  border-color: var(--sand-deep);
+  background: var(--bg-3);
 }
 
 .run-buttons {
