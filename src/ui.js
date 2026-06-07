@@ -5,6 +5,7 @@
 import { algorithms } from './algorithms.js';
 
 const MAIN_ALGORITHMS = new Set(['bubble', 'insertion', 'selection', 'merge', 'quick', 'heap']);
+let tooltipsReady = false;
 
 const PY_KEYWORDS = new Set([
   'def', 'return', 'for', 'while', 'if', 'elif', 'else', 'in', 'and', 'or',
@@ -19,6 +20,10 @@ const PY_BUILTINS = new Set([
 
 function escapeHtml(text) {
   return text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+function escapeAttr(text) {
+  return escapeHtml(text).replace(/"/g, '&quot;');
 }
 
 export function highlightPython(code) {
@@ -41,6 +46,44 @@ export function highlightPython(code) {
   return out;
 }
 
+function setupFloatingTooltips() {
+  if (tooltipsReady) return;
+  tooltipsReady = true;
+
+  const tip = document.createElement('div');
+  tip.className = 'floating-tooltip';
+  document.body.appendChild(tip);
+
+  const show = (target) => {
+    const text = target?.dataset?.tooltip;
+    if (!text) return;
+    tip.textContent = text;
+    tip.classList.add('active');
+    const rect = target.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    const x = Math.min(
+      window.innerWidth - tipRect.width - 12,
+      Math.max(12, rect.left + rect.width / 2 - tipRect.width / 2)
+    );
+    const y = Math.max(12, rect.top - tipRect.height - 10);
+    tip.style.left = `${x}px`;
+    tip.style.top = `${y}px`;
+  };
+
+  const hide = () => {
+    tip.classList.remove('active');
+  };
+
+  document.addEventListener('pointerover', (e) => show(e.target.closest?.('[data-tooltip]')));
+  document.addEventListener('pointerout', (e) => {
+    if (e.target.closest?.('[data-tooltip]')) hide();
+  });
+  document.addEventListener('focusin', (e) => show(e.target.closest?.('[data-tooltip]')));
+  document.addEventListener('focusout', hide);
+  window.addEventListener('scroll', hide, true);
+  window.addEventListener('resize', hide);
+}
+
 // --- toolbar -----------------------------------------------------------------
 
 // Preserve registry order while collecting each category's algorithms.
@@ -54,6 +97,7 @@ function groupByCategory(list) {
 }
 
 export function buildAlgorithmButtons(container, onSelect) {
+  setupFloatingTooltips();
   container.innerHTML = '';
   const mainAlgorithms = algorithms.filter((algo) => MAIN_ALGORITHMS.has(algo.key));
   const moreAlgorithms = algorithms.filter((algo) => !MAIN_ALGORITHMS.has(algo.key));
@@ -112,6 +156,8 @@ export function buildAlgorithmButtons(container, onSelect) {
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Hide more algorithms' : 'Show more algorithms');
     toggle.dataset.tooltip = open ? 'Hide more algorithms' : 'Show more algorithms';
+    const hasHiddenActive = !!moreContent.querySelector('.algo-button.active');
+    toggle.classList.toggle('active', !open && hasHiddenActive);
   });
 }
 
@@ -119,6 +165,38 @@ export function buildAlgorithmButtons(container, onSelect) {
 
 function briefPhrase(algo) {
   return algo.tooltip.replace(/^.*?—\s*/, '');
+}
+
+function complexitiesMatch(algo) {
+  const { best, average, worst } = algo.docs.complexity;
+  return best === average && average === worst;
+}
+
+function runnableCase(algo, caseType) {
+  return complexitiesMatch(algo) ? 'random' : caseType;
+}
+
+function caseShape(algo, caseType) {
+  if (complexitiesMatch(algo)) {
+    return 'Random array. All input cases have the same time complexity for this algorithm.';
+  }
+  if (caseType === 'random') return 'Randomly shuffled array.';
+  if (caseType === 'best') {
+    if (algo.key === 'quick') return 'Balanced pivot setup: the median value is placed at the final pivot position.';
+    return 'Already sorted ascending array.';
+  }
+  if (caseType === 'worst') {
+    if (algo.key === 'quick') return 'Already sorted ascending array, which is poor for this last-element pivot quicksort.';
+    if (algo.key === 'comb' || algo.key === 'shell') return 'Deterministic high-disorder shuffle selected to exercise this gap sequence heavily.';
+    if (algo.key === 'tim') return 'Fragmented alternating high/low runs that prevent a single natural run.';
+    if (algo.key === 'bogo') return 'Random array; bad luck can keep shuffling until the recording cap.';
+    return 'Reverse-sorted descending array.';
+  }
+  return 'Randomly shuffled array.';
+}
+
+function caseButtonAttrs(algo, caseType) {
+  return `data-algorithm="${algo.key}" data-case="${runnableCase(algo, caseType)}" data-tooltip="${escapeAttr(caseShape(algo, caseType))}"`;
 }
 
 function overviewHtml() {
@@ -131,9 +209,9 @@ function overviewHtml() {
             <button class="overview-name" data-algorithm="${algo.key}">${algo.name}</button>
           </th>
           <td>${escapeHtml(briefPhrase(algo))}</td>
-          <td><button class="complexity-run" data-algorithm="${algo.key}" data-case="best">${complexity.best}</button></td>
-          <td><button class="complexity-run" data-algorithm="${algo.key}" data-case="random">${complexity.average}</button></td>
-          <td><button class="complexity-run" data-algorithm="${algo.key}" data-case="worst">${complexity.worst}</button></td>
+          <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'best')}>${complexity.best}</button></td>
+          <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'random')}>${complexity.average}</button></td>
+          <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'worst')}>${complexity.worst}</button></td>
         </tr>`;
     })
     .join('');
@@ -162,29 +240,33 @@ function sectionHtml(algo) {
   const { docs } = algo;
   const steps = docs.steps.map((s) => `<li>${s}</li>`).join('');
   const cards = [
-    ['Best Case', docs.complexity.best],
-    ['Worst Case', docs.complexity.worst],
-    ['Average Case', docs.complexity.average],
-    ['Space', docs.complexity.space],
+    ['Best Case', 'best', docs.complexity.best],
+    ['Average Case', 'random', docs.complexity.average],
+    ['Worst Case', 'worst', docs.complexity.worst],
   ]
     .map(
-      ([label, value]) => `
-        <div class="complexity-card">
+      ([label, caseType, value]) => `
+        <button class="complexity-card case-card tooltip" ${caseButtonAttrs(algo, caseType)}>
           <h5>${label}</h5>
           <div class="value">${value}</div>
-        </div>`
+        </button>`
     )
-    .join('');
+    .join('') +
+    `
+      <div class="complexity-card">
+        <h5>Space</h5>
+        <div class="value">${docs.complexity.space}</div>
+      </div>`;
 
   return `
     <section class="algorithm-section" id="section-${algo.key}">
       <h3 class="section-title">${algo.name}</h3>
       <div class="run-buttons">
-        <button class="run-button random" data-algorithm="${algo.key}" data-case="random">
+        <button class="run-button random tooltip" ${caseButtonAttrs(algo, 'random')}>
           <i class="fas fa-random"></i> Run Random</button>
-        <button class="run-button best-case" data-algorithm="${algo.key}" data-case="best">
+        <button class="run-button best-case tooltip" ${caseButtonAttrs(algo, 'best')}>
           <i class="fas fa-check"></i> Run Best Case</button>
-        <button class="run-button worst-case" data-algorithm="${algo.key}" data-case="worst">
+        <button class="run-button worst-case tooltip" ${caseButtonAttrs(algo, 'worst')}>
           <i class="fas fa-times"></i> Run Worst Case</button>
       </div>
       <div class="algorithm-description">
@@ -204,6 +286,7 @@ function sectionHtml(algo) {
 }
 
 export function buildModal({ sidebar, content }, onRunPreset) {
+  setupFloatingTooltips();
   sidebar.innerHTML =
     '<h3>Algorithms</h3>' +
     [...groupByCategory(algorithms)]
@@ -221,7 +304,7 @@ export function buildModal({ sidebar, content }, onRunPreset) {
 
   content.innerHTML = overviewHtml() + algorithms.map(sectionHtml).join('');
 
-  content.querySelectorAll('.run-button, .complexity-run').forEach((btn) => {
+  content.querySelectorAll('.run-button, .complexity-run, .case-card').forEach((btn) => {
     btn.addEventListener('click', () =>
       onRunPreset(btn.dataset.algorithm, btn.dataset.case)
     );

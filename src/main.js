@@ -98,6 +98,22 @@ function setActiveButton(key) {
   dom.algoButtons.querySelectorAll('.algo-button').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.algorithm === key);
   });
+  const activeMoreButton = key
+    ? dom.algoButtons.querySelector(`.more-algorithms-content .algo-button[data-algorithm="${key}"]`)
+    : null;
+  if (activeMoreButton) {
+    const moreContent = dom.algoButtons.querySelector('.more-algorithms-content');
+    const moreToggle = dom.algoButtons.querySelector('.more-toggle');
+    moreContent?.classList.add('open');
+    moreToggle?.setAttribute('aria-expanded', 'true');
+    moreToggle?.setAttribute('aria-label', 'Hide more algorithms');
+    if (moreToggle) {
+      moreToggle.dataset.tooltip = 'Hide more algorithms';
+      moreToggle.classList.remove('active');
+    }
+  } else {
+    dom.algoButtons.querySelector('.more-toggle')?.classList.remove('active');
+  }
 }
 
 function renderFrame() {
@@ -197,8 +213,19 @@ function runPreset(key, caseType) {
   const size = DEFAULT_SIZE;
   const makers = { best: bestCaseArray, worst: worstCaseArray, random: randomCaseArray };
   const array = (makers[caseType] ?? randomCaseArray)(key, size);
+  const presetDistribution = (() => {
+    if (caseType === 'random') return 'random';
+    if (caseType === 'best') return key === 'quick' ? 'balancedPivot' : 'sorted';
+    if (key === 'quick') return 'sorted';
+    if (key === 'comb' || key === 'shell') return 'highDisorder';
+    if (key === 'tim') return 'fragmentedRuns';
+    if (key === 'bogo') return 'random';
+    return 'reversed';
+  })();
   state.size = array.length;
+  state.distribution = presetDistribution;
   dom.sizeInput.value = array.length;
+  dom.distribution.value = presetDistribution;
   dom.speed.value = DEFAULT_SPEED;
   closeModal();
   setTimeout(() => runAlgorithm(key, array), 250);

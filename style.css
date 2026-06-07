@@ -235,6 +235,8 @@ button:disabled {
 /* ---------- algorithm toolbar (grouped) ---------- */
 
 .algo-toolbar {
+  position: relative;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
@@ -323,6 +325,12 @@ button:disabled {
   transform: rotate(45deg);
 }
 
+.more-toggle.active {
+  background: linear-gradient(180deg, var(--sand), var(--sand-deep));
+  border-color: var(--sand-bright);
+  color: #1a160f;
+}
+
 .more-toggle i {
   transition: transform 0.18s ease;
 }
@@ -330,6 +338,8 @@ button:disabled {
 /* ---------- playback transport ---------- */
 
 .playback-controls {
+  position: relative;
+  z-index: 1;
   gap: 12px;
   flex-wrap: wrap;
   min-height: 58px;
@@ -475,7 +485,7 @@ button:disabled {
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  width: 132px;
+  width: 168px;
   min-height: 28px;
   font-size: 0.86rem;
   color: var(--text-dim);
@@ -492,7 +502,7 @@ button:disabled {
   font-size: 0.98rem;
   font-weight: 600;
   color: var(--sand-bright);
-  min-width: 42px;
+  min-width: 62px;
   text-align: right;
 }
 
@@ -829,14 +839,9 @@ button:disabled {
 
 /* ---------- tooltips ---------- */
 
-.tooltip { position: relative; }
-
-.tooltip:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+.floating-tooltip {
+  position: fixed;
+  z-index: 3000;
   padding: 8px 12px;
   width: max-content;
   max-width: 240px;
@@ -849,9 +854,18 @@ button:disabled {
   line-height: 1.4;
   white-space: normal;
   text-align: center;
-  z-index: 100;
   box-shadow: var(--shadow-sm);
   pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s ease;
+}
+
+.floating-tooltip.active {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
 }
 
 /* ---------- responsive: width ---------- */
