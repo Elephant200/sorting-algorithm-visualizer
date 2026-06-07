@@ -63,7 +63,7 @@ export function createEngine() {
       case 'markSorted':
         for (const i of op.indices) sorted.add(i);
         break;
-      // pivot / range are purely visual — nothing to apply.
+      // pivot is purely visual — nothing to apply.
     }
   }
 

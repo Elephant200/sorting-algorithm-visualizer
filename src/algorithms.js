@@ -11,14 +11,12 @@
 //   { type: 'overwrite',  index, value, prev }         write `value` into a[index]
 //   { type: 'setArray',   value: [...], prev: [...] }  replace the whole array
 //   { type: 'pivot',      index }                       mark a pivot (visual only)
-//   { type: 'range',      start, end }                  active window (visual only)
 //   { type: 'markSorted', indices: [...] }              finalize elements (green)
 
 // --- op helpers --------------------------------------------------------------
 
 const compare = (i, j) => ({ type: 'compare', indices: [i, j] });
 const pivot = (i) => ({ type: 'pivot', index: i });
-const range = (start, end) => ({ type: 'range', start, end });
 const markSorted = (...indices) => ({ type: 'markSorted', indices });
 
 function* swap(a, i, j) {
@@ -197,7 +195,6 @@ function* heap(a) {
 }
 
 function* mergeRange(a, lo, mid, hi) {
-  yield range(lo, hi - 1);
   const temp = [];
   let i = lo;
   let j = mid;
@@ -208,10 +205,7 @@ function* mergeRange(a, lo, mid, hi) {
   }
   while (i < mid) temp.push(a[i++]);
   while (j < hi) temp.push(a[j++]);
-  for (let k = 0; k < temp.length; k++) {
-    yield* write(a, lo + k, temp[k]);
-    yield range(lo, hi - 1);
-  }
+  for (let k = 0; k < temp.length; k++) yield* write(a, lo + k, temp[k]);
 }
 
 function* mergeSort(a, lo, hi) {
@@ -232,7 +226,6 @@ function* partition(a, lo, hi) {
   yield pivot(hi);
   let i = lo - 1;
   for (let j = lo; j < hi; j++) {
-    yield range(lo, hi);
     yield compare(j, hi);
     if (a[j] <= pivotValue) {
       i++;
@@ -248,7 +241,6 @@ function* quickSort(a, lo, hi) {
     if (lo === hi) yield markSorted(lo);
     return;
   }
-  yield range(lo, hi);
   const p = yield* partition(a, lo, hi);
   yield markSorted(p);
   yield* quickSort(a, lo, p - 1);
@@ -327,7 +319,6 @@ function* binaryInsertionSort(a, lo, hi, start) {
 // Stable merge of two adjacent runs via a copy of the (smaller) left run.
 function* mergeRuns(a, base1, len1, base2, len2) {
   const hi = base2 + len2;
-  yield range(base1, hi - 1);
   const left = a.slice(base1, base1 + len1);
   let i = 0;
   let j = base2;
@@ -336,7 +327,6 @@ function* mergeRuns(a, base1, len1, base2, len2) {
     yield compare(k, j);
     if (left[i] <= a[j]) yield* write(a, k++, left[i++]);
     else yield* write(a, k++, a[j++]);
-    yield range(base1, hi - 1);
   }
   while (i < len1) yield* write(a, k++, left[i++]);
 }
@@ -446,16 +436,15 @@ function* counting(a) {
   yield* sweep(a);
 }
 
-// Capped so recording always terminates. Only sensible on tiny arrays.
-function* bogo(a, cap = 5000) {
-  let tries = 0;
-  while (!isSorted(a) && tries < cap) {
+// Shuffles until sorted. Only sensible on a handful of elements; the engine's
+// global recording cap is the sole backstop against an unlucky large array.
+function* bogo(a) {
+  while (!isSorted(a)) {
     const prev = a.slice();
     shuffleInPlace(a);
-    tries++;
     yield { type: 'setArray', value: a.slice(), prev };
   }
-  if (isSorted(a)) yield* sweep(a);
+  yield* sweep(a);
 }
 
 // --- registry: single source of truth for UI + docs -------------------------
@@ -930,7 +919,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     gen: bogo,
     docs: {
       description:
-        'A deliberately terrible "generate and test" algorithm: shuffle the whole array at random, check if it happens to be sorted, and repeat. Expected work is O(n × n!), so it is only usable on a handful of elements — the visualizer caps the number of shuffles.',
+        'A deliberately terrible "generate and test" algorithm: shuffle the whole array at random, check if it happens to be sorted, and repeat. Expected work is O(n × n!), so it is only usable on a handful of elements — try it with a small array size.',
       steps: [
         'Check whether the array is sorted.',
         'If it is, stop — you got lucky.',

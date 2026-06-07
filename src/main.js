@@ -34,7 +34,6 @@ const dom = {
   playPause: $('play-pause'),
   stepForward: $('step-forward'),
   speed: $('speed'),
-  scrub: $('scrub'),
   status: $('status'),
   modalOverlay: $('modal-overlay'),
   modalSidebar: $('modal-sidebar'),
@@ -101,11 +100,13 @@ function setActiveButton(key) {
 function renderFrame() {
   renderer.frame(engine.array, engine.sorted, engine.currentOp());
   renderer.setStats(engine.stats, currentTimeSec(), isBogo());
-  dom.scrub.max = engine.total;
-  dom.scrub.value = engine.cursor;
-  dom.status.textContent = engine.total
-    ? `${engine.cursor} / ${engine.total}${engine.truncated ? ' (capped)' : ''}`
-    : 'Pick an algorithm';
+  if (engine.total === 0) {
+    dom.status.textContent = 'Pick an algorithm';
+  } else if (engine.done) {
+    dom.status.textContent = engine.truncated ? 'Stopped — too long' : 'Sorted';
+  } else {
+    dom.status.textContent = state.playing ? 'Sorting…' : 'Paused';
+  }
 }
 
 function setPlayIcon(playing) {
@@ -170,8 +171,6 @@ function regenerate() {
   renderer.setArray(state.baseArray);
   renderer.clearHighlights(state.baseArray, engine.sorted);
   renderer.setStats(engine.stats, 0, false);
-  dom.scrub.max = 0;
-  dom.scrub.value = 0;
   dom.status.textContent = 'Pick an algorithm';
 }
 
@@ -241,11 +240,6 @@ function bindEvents() {
   dom.playPause.addEventListener('click', togglePlay);
   dom.stepForward.addEventListener('click', () => stepOnce(true));
   dom.stepBack.addEventListener('click', () => stepOnce(false));
-  dom.scrub.addEventListener('input', () => {
-    pause();
-    engine.seek(Number(dom.scrub.value));
-    renderFrame();
-  });
 
   dom.modalClose.addEventListener('click', closeModal);
   dom.modalOverlay.addEventListener('click', (e) => {

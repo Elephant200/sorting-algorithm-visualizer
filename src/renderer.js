@@ -64,18 +64,12 @@ export function createRenderer({ container, stats }) {
     let compareSet = null;
     let swapSet = null;
     let pivotIdx = -1;
-    let rangeStart = -1;
-    let rangeEnd = -1;
 
     if (op) {
       if (op.type === 'compare') compareSet = op.indices;
       else if (op.type === 'swap') swapSet = op.indices;
       else if (op.type === 'overwrite') swapSet = [op.index];
       else if (op.type === 'pivot') pivotIdx = op.index;
-      else if (op.type === 'range') {
-        rangeStart = op.start;
-        rangeEnd = op.end;
-      }
     }
 
     for (let i = 0; i < array.length; i++) {
@@ -86,7 +80,6 @@ export function createRenderer({ container, stats }) {
       else if (pivotIdx === i) cls += ' pivot';
       else if (swapSet && swapSet.includes(i)) cls += ' swapping';
       else if (compareSet && compareSet.includes(i)) cls += ' comparing';
-      else if (rangeStart >= 0 && (i < rangeStart || i > rangeEnd)) cls += ' dim';
       bar.className = cls;
     }
   }
