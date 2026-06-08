@@ -1087,14 +1087,14 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
       code: `MIN_MERGE = 24
 
 def tim_sort(arr: list[int]) -> list[int]:
-    """Timsort: detect runs, pad to minrun, merge under size invariants."""
+    """A compact Timsort-style implementation."""
     result = arr.copy()
     n = len(result)
     if n < 2:
         return result
 
     min_run = min_run_length(n)
-    runs = []  # stack of (base, length)
+    runs = []
     low = 0
     while low < n:
         run_len = count_run_and_make_ascending(result, low, n)
@@ -1103,10 +1103,20 @@ def tim_sort(arr: list[int]) -> list[int]:
             binary_insertion_sort(result, low, low + force, low + run_len)
             run_len = force
         runs.append((low, run_len))
-        merge_collapse(result, runs)
         low += run_len
 
-    merge_force_collapse(result, runs)
+    while len(runs) > 1:
+        merged = []
+        for i in range(0, len(runs), 2):
+            if i + 1 == len(runs):
+                merged.append(runs[i])
+            else:
+                base1, len1 = runs[i]
+                base2, len2 = runs[i + 1]
+                merge_runs(result, base1, len1, base2, len2)
+                merged.append((base1, len1 + len2))
+        runs = merged
+
     return result
 
 def min_run_length(n: int) -> int:
@@ -1114,7 +1124,51 @@ def min_run_length(n: int) -> int:
     while n >= MIN_MERGE:
         r |= n & 1
         n >>= 1
-    return n + r`,
+    return n + r
+
+def count_run_and_make_ascending(arr: list[int], lo: int, hi: int) -> int:
+    run_hi = lo + 1
+    if run_hi == hi:
+        return 1
+    if arr[run_hi] < arr[lo]:
+        while run_hi < hi and arr[run_hi] < arr[run_hi - 1]:
+            run_hi += 1
+        arr[lo:run_hi] = reversed(arr[lo:run_hi])
+    else:
+        while run_hi < hi and arr[run_hi] >= arr[run_hi - 1]:
+            run_hi += 1
+    return run_hi - lo
+
+def binary_insertion_sort(arr: list[int], lo: int, hi: int, start: int) -> None:
+    for i in range(start, hi):
+        pivot = arr[i]
+        left, right = lo, i
+        while left < right:
+            mid = (left + right) // 2
+            if pivot < arr[mid]:
+                right = mid
+            else:
+                left = mid + 1
+        for j in range(i, left, -1):
+            arr[j] = arr[j - 1]
+        arr[left] = pivot
+
+def merge_runs(arr: list[int], base1: int, len1: int, base2: int, len2: int) -> None:
+    left = arr[base1:base1 + len1]
+    right = arr[base2:base2 + len2]
+    i = j = 0
+    dest = base1
+    while i < len1 and j < len2:
+        if left[i] <= right[j]:
+            arr[dest] = left[i]
+            i += 1
+        else:
+            arr[dest] = right[j]
+            j += 1
+        dest += 1
+    arr[dest:dest + len1 - i] = left[i:]
+    dest += len1 - i
+    arr[dest:dest + len2 - j] = right[j:]`,
     },
   },
   {
