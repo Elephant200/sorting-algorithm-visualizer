@@ -1351,7 +1351,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'cycle',
-    category: 'Simple — O(n²)',
+    category: 'Miscellaneous',
     name: 'Cycle Sort',
     tooltip: 'O(n²) average — minimizes array writes by rotating cycles',
     gen: cycle,
