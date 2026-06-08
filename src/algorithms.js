@@ -677,6 +677,38 @@ function* bead(a) {
   yield* sweep(a);
 }
 
+function* bucket(a) {
+  const n = a.length;
+  if (n === 0) return;
+  const min = Math.min(...a);
+  const max = Math.max(...a);
+  const range = max - min + 1;
+  const buckets = Array.from({ length: n }, () => []);
+
+  for (let i = 0; i < n; i++) {
+    yield compare(i, i);
+    const index = Math.min(n - 1, Math.floor(((a[i] - min) * n) / range));
+    buckets[index].push(a[i]);
+  }
+
+  const sorted = [];
+  for (const bucketItems of buckets) {
+    for (let i = 1; i < bucketItems.length; i++) {
+      const key = bucketItems[i];
+      let j = i - 1;
+      while (j >= 0 && bucketItems[j] > key) {
+        bucketItems[j + 1] = bucketItems[j];
+        j--;
+      }
+      bucketItems[j + 1] = key;
+    }
+    sorted.push(...bucketItems);
+  }
+
+  for (let i = 0; i < n; i++) yield* write(a, i, sorted[i]);
+  yield* sweep(a);
+}
+
 function* gnome(a) {
   let i = 1;
   while (i < a.length) {
@@ -1428,6 +1460,54 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
         threshold = n - 1 - i
         result.append(sum(1 for count in rows if count > threshold))
     return result`,
+    },
+  },
+  {
+    key: 'bucket',
+    category: 'Non-comparison',
+    name: 'Bucket Sort',
+    tooltip: 'O(n + k) average — distributes values into buckets',
+    gen: bucket,
+    docs: {
+      description:
+        'A distribution sort that places values into a set of buckets, sorts each bucket, and concatenates the buckets in order. The usual textbook version assumes values are spread fairly evenly, so each bucket stays small and insertion sort is cheap. If many values land in one bucket, the per-bucket insertion sort can dominate and the worst case becomes quadratic.',
+      steps: [
+        'Find the input range and create one bucket per item.',
+        'Map each value into a bucket based on its relative position in the range.',
+        'Sort each bucket, usually with insertion sort.',
+        'Concatenate the buckets from low to high.',
+      ],
+      complexity: { best: 'O(n + k)', worst: 'O(n²)', average: 'O(n + k)', space: 'O(n + k)' },
+      code: `def bucket_sort(arr: list[int]) -> list[int]:
+    """Sort integers by distributing them into buckets."""
+    if not arr:
+        return []
+
+    result = arr.copy()
+    bucket_count = len(result)
+    min_value = min(result)
+    max_value = max(result)
+    value_range = max_value - min_value + 1
+    buckets = [[] for _ in range(bucket_count)]
+
+    for value in result:
+        index = ((value - min_value) * bucket_count) // value_range
+        buckets[min(bucket_count - 1, index)].append(value)
+
+    output = []
+    for bucket in buckets:
+        insertion_sort(bucket)
+        output.extend(bucket)
+    return output
+
+def insertion_sort(arr: list[int]) -> None:
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i - 1
+        while j >= 0 and arr[j] > key:
+            arr[j + 1] = arr[j]
+            j -= 1
+        arr[j + 1] = key`,
     },
   },
   {
