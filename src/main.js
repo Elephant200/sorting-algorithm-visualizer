@@ -136,10 +136,34 @@ function setPlayIcon(playing) {
     : '<i class="fas fa-play" aria-hidden="true"></i>';
 }
 
+let pickAlgorithmPromptTimer = null;
+
+function clearPickAlgorithmPrompt() {
+  clearTimeout(pickAlgorithmPromptTimer);
+  dom.status.classList.remove('needs-algorithm');
+  dom.algoButtons.classList.remove('needs-selection');
+}
+
+function promptPickAlgorithm() {
+  dom.status.textContent = 'Select an algorithm above';
+  dom.status.classList.add('needs-algorithm');
+  dom.algoButtons.classList.add('needs-selection');
+  clearTimeout(pickAlgorithmPromptTimer);
+  pickAlgorithmPromptTimer = setTimeout(() => {
+    dom.status.classList.remove('needs-algorithm');
+    dom.algoButtons.classList.remove('needs-selection');
+    if (engine.total === 0) dom.status.textContent = 'Pick an algorithm';
+  }, 2500);
+}
+
 // --- driver ------------------------------------------------------------------
 
 function play() {
-  if (engine.total === 0 || state.playing) return;
+  if (engine.total === 0) {
+    promptPickAlgorithm();
+    return;
+  }
+  if (state.playing) return;
   if (engine.done) engine.seek(0); // replay from the start
   state.playing = true;
   state.playStartedAt = performance.now();
@@ -204,6 +228,7 @@ function regenerate() {
 
 function runAlgorithm(key, array = state.baseArray) {
   pause();
+  clearPickAlgorithmPrompt();
   state.algorithm = key;
   state.baseArray = array;
   state.elapsedMs = 0;
@@ -232,7 +257,10 @@ function runPreset(key, caseType) {
   dom.distribution.value = presetDistribution;
   dom.speed.value = DEFAULT_SPEED;
   closeModal();
-  setTimeout(() => runAlgorithm(key, array), 250);
+  setTimeout(() => {
+    runAlgorithm(key, array);
+    play();
+  }, 250);
 }
 
 // --- size / distribution -----------------------------------------------------

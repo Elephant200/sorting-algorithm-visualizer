@@ -400,6 +400,20 @@ button:disabled {
   white-space: nowrap;
 }
 
+.status.needs-algorithm {
+  color: var(--sand-bright);
+  font-weight: 600;
+}
+
+.algo-toolbar.needs-selection {
+  animation: algo-toolbar-pulse 0.55s ease-in-out 2;
+}
+
+@keyframes algo-toolbar-pulse {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 2px var(--sand-bright); }
+}
+
 /* ---------- legend ---------- */
 
 .legend {
