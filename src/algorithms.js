@@ -1126,6 +1126,9 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
                 result[i], result[i + 1] = result[i + 1], result[i]
                 swapped = True
         hi -= 1
+        if not swapped:
+            break
+        swapped = False
         for i in range(hi, lo, -1):
             if result[i - 1] > result[i]:
                 result[i - 1], result[i] = result[i], result[i - 1]
@@ -1485,22 +1488,26 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
       ],
       complexity: { best: 'O(n × m)', worst: 'O(n × m)', average: 'O(n × m)', space: 'O(m)' },
       code: `def bead_sort(arr: list[int]) -> list[int]:
-    """Sort non-negative integers by simulating bead gravity."""
+    """Sort non-negative integers by simulating beads falling under gravity."""
     if not arr:
         return []
 
-    max_value = max(arr)
-    rows = [0] * max_value
-    for value in arr:
-        for level in range(value):
-            rows[level] += 1
-
-    result = []
     n = len(arr)
+    max_value = max(arr)
+    # grid[i][j] is 1 when row i has a bead on rod j.
+    grid = [[0] * max_value for _ in range(n)]
     for i in range(n):
-        threshold = n - 1 - i
-        result.append(sum(1 for count in rows if count > threshold))
-    return result`,
+        for j in range(arr[i]):
+            grid[i][j] = 1
+
+    # Let the beads on each rod fall to the bottom rows.
+    for j in range(max_value):
+        beads = sum(grid[i][j] for i in range(n))
+        for i in range(n):
+            grid[i][j] = 1 if i >= n - beads else 0
+
+    # Each row's bead count is its sorted value (ascending top to bottom).
+    return [sum(row) for row in grid]`,
     },
   },
   {
