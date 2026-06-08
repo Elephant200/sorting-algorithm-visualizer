@@ -772,6 +772,24 @@ button:disabled {
   border-color: var(--sand-deep);
 }
 
+.complexity-run[aria-disabled="true"],
+.run-button[aria-disabled="true"],
+.case-card[aria-disabled="true"] {
+  opacity: 0.44;
+  filter: grayscale(0.85);
+  cursor: not-allowed;
+}
+
+.complexity-run[aria-disabled="true"]:hover,
+.case-card[aria-disabled="true"]:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.run-button[aria-disabled="true"]:hover {
+  filter: grayscale(0.85);
+}
+
 .modal-scroll-top {
   position: absolute;
   right: 24px;

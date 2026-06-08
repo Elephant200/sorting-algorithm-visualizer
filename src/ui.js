@@ -180,8 +180,15 @@ function runnableCase(algo, caseType) {
   return complexitiesMatch(algo) ? 'random' : caseType;
 }
 
+function caseIsDisabled(algo, caseType) {
+  return complexitiesMatch(algo) && caseType !== 'random';
+}
+
 function caseShape(algo, caseType) {
   if (complexitiesMatch(algo)) {
+    if (caseType === 'best' || caseType === 'worst') {
+      return 'No distinct best or worst case: this algorithm has the same time complexity for every input shape.';
+    }
     return 'Random array. All input cases have the same time complexity for this algorithm.';
   }
   if (caseType === 'random') return 'Randomly shuffled array.';
@@ -200,7 +207,10 @@ function caseShape(algo, caseType) {
 }
 
 function caseButtonAttrs(algo, caseType) {
-  return `data-algorithm="${algo.key}" data-case="${runnableCase(algo, caseType)}" data-tooltip="${escapeAttr(caseShape(algo, caseType))}"`;
+  const disabled = caseIsDisabled(algo, caseType)
+    ? ' aria-disabled="true" data-disabled-case="true"'
+    : '';
+  return `data-algorithm="${algo.key}" data-case="${runnableCase(algo, caseType)}" data-tooltip="${escapeAttr(caseShape(algo, caseType))}"${disabled}`;
 }
 
 function overviewHtml(groups) {
@@ -321,9 +331,10 @@ export function buildModal({ sidebar, content }, onRunPreset) {
   content.innerHTML = overviewHtml(groups) + orderedAlgorithms.map(sectionHtml).join('');
 
   content.querySelectorAll('.run-button, .complexity-run, .case-card').forEach((btn) => {
-    btn.addEventListener('click', () =>
-      onRunPreset(btn.dataset.algorithm, btn.dataset.case)
-    );
+    btn.addEventListener('click', () => {
+      if (btn.dataset.disabledCase) return;
+      onRunPreset(btn.dataset.algorithm, btn.dataset.case);
+    });
   });
 
   const scrollToAlgorithm = (key) => {
