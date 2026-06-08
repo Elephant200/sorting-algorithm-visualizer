@@ -257,6 +257,72 @@ function* quick(a) {
   yield* sweep(a);
 }
 
+function* insertionRange(a, lo, hi) {
+  for (let i = lo + 1; i < hi; i++) {
+    const key = a[i];
+    let j = i - 1;
+    while (j >= lo) {
+      yield compare(j, j + 1);
+      if (a[j] > key) {
+        yield* write(a, j + 1, a[j]);
+        j--;
+      } else break;
+    }
+    yield* write(a, j + 1, key);
+  }
+}
+
+function* siftDownRange(a, lo, root, end) {
+  while (true) {
+    let largest = root;
+    const left = lo + 2 * (root - lo) + 1;
+    const right = left + 1;
+    if (left < end) {
+      yield compare(left, largest);
+      if (a[left] > a[largest]) largest = left;
+    }
+    if (right < end) {
+      yield compare(right, largest);
+      if (a[right] > a[largest]) largest = right;
+    }
+    if (largest === root) break;
+    yield* swap(a, root, largest);
+    root = largest;
+  }
+}
+
+function* heapSortRange(a, lo, hi) {
+  for (let i = lo + Math.floor((hi - lo) / 2) - 1; i >= lo; i--) {
+    yield* siftDownRange(a, lo, i, hi);
+  }
+  for (let end = hi - 1; end > lo; end--) {
+    yield* swap(a, lo, end);
+    yield* siftDownRange(a, lo, lo, end);
+  }
+}
+
+function* introsortRange(a, lo, hi, depthLimit) {
+  const size = hi - lo;
+  if (size < 2) return;
+  if (size < 16) {
+    yield* insertionRange(a, lo, hi);
+    return;
+  }
+  if (depthLimit === 0) {
+    yield* heapSortRange(a, lo, hi);
+    return;
+  }
+  const p = yield* partition(a, lo, hi - 1);
+  yield* introsortRange(a, lo, p, depthLimit - 1);
+  yield* introsortRange(a, p + 1, hi, depthLimit - 1);
+}
+
+function* introspective(a) {
+  const depthLimit = a.length > 1 ? 2 * Math.floor(Math.log2(a.length)) : 0;
+  yield* introsortRange(a, 0, a.length, depthLimit);
+  yield* sweep(a);
+}
+
 // Faithful Timsort: natural run detection, minrun-padded binary insertion
 // sort, galloping merges, and a run stack merged under Timsort's size invariants.
 
@@ -994,6 +1060,84 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
         lo += 1
 
     return result`,
+    },
+  },
+  {
+    key: 'introspective',
+    category: 'Optimized Variants',
+    name: 'Introspective Sort',
+    tooltip: 'O(n log n) — quicksort with a heap-sort fallback',
+    gen: introspective,
+    docs: {
+      description:
+        'A hybrid comparison sort, usually called Introsort. It begins like Quick Sort because partitioning is fast in practice, tracks recursion depth to detect bad pivot behavior, and switches the current partition to Heap Sort if recursion gets too deep. Small partitions are finished with Insertion Sort. This gives it Quick Sort’s average-case speed while preserving a worst-case O(n log n) bound.',
+      steps: [
+        'Start with a depth limit of about 2 × log₂(n).',
+        'Partition the range as Quick Sort would.',
+        'Recurse on the partitions while decreasing the depth limit.',
+        'If the depth limit reaches zero, heap-sort that range.',
+        'Use insertion sort for small ranges.',
+      ],
+      complexity: { best: 'O(n log n)', worst: 'O(n log n)', average: 'O(n log n)', space: 'O(log n)' },
+      code: `def intro_sort(arr: list[int]) -> list[int]:
+    """Introsort: quicksort with heapsort fallback."""
+    result = arr.copy()
+    depth_limit = 2 * (len(result).bit_length() - 1)
+    intro_sort_util(result, 0, len(result) - 1, depth_limit)
+    return result
+
+def intro_sort_util(arr: list[int], begin: int, end: int, depth_limit: int) -> None:
+    size = end - begin + 1
+    if size <= 1:
+        return
+    if size < 16:
+        insertion_sort_range(arr, begin, end)
+        return
+    if depth_limit == 0:
+        heap_sort_range(arr, begin, end)
+        return
+    pivot = partition(arr, begin, end)
+    intro_sort_util(arr, begin, pivot - 1, depth_limit - 1)
+    intro_sort_util(arr, pivot + 1, end, depth_limit - 1)
+
+def partition(arr: list[int], low: int, high: int) -> int:
+    pivot = arr[high]
+    i = low - 1
+    for j in range(low, high):
+        if arr[j] <= pivot:
+            i += 1
+            arr[i], arr[j] = arr[j], arr[i]
+    arr[i + 1], arr[high] = arr[high], arr[i + 1]
+    return i + 1
+
+def insertion_sort_range(arr: list[int], begin: int, end: int) -> None:
+    for i in range(begin + 1, end + 1):
+        key = arr[i]
+        j = i - 1
+        while j >= begin and arr[j] > key:
+            arr[j + 1] = arr[j]
+            j -= 1
+        arr[j + 1] = key
+
+def heap_sort_range(arr: list[int], begin: int, end: int) -> None:
+    count = end - begin + 1
+    for root in range(count // 2 - 1, -1, -1):
+        heapify(arr, count, root, begin)
+    for last in range(count - 1, 0, -1):
+        arr[begin], arr[begin + last] = arr[begin + last], arr[begin]
+        heapify(arr, last, 0, begin)
+
+def heapify(arr: list[int], count: int, root: int, offset: int) -> None:
+    largest = root
+    left = 2 * root + 1
+    right = 2 * root + 2
+    if left < count and arr[offset + left] > arr[offset + largest]:
+        largest = left
+    if right < count and arr[offset + right] > arr[offset + largest]:
+        largest = right
+    if largest != root:
+        arr[offset + root], arr[offset + largest] = arr[offset + largest], arr[offset + root]
+        heapify(arr, count, largest, offset)`,
     },
   },
   {
