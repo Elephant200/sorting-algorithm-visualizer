@@ -745,6 +745,47 @@ function* oddEven(a) {
   yield* sweep(a);
 }
 
+function nextPowerOfTwo(n) {
+  let power = 1;
+  while (power < n) power <<= 1;
+  return power;
+}
+
+function* bitonicMergePadded(values, visibleLength, lo, count, ascending) {
+  if (count <= 1) return;
+  const step = count / 2;
+  for (let i = lo; i < lo + step; i++) {
+    if (i < visibleLength && i + step < visibleLength) yield compare(i, i + step);
+    if (
+      (ascending && values[i] > values[i + step]) ||
+      (!ascending && values[i] < values[i + step])
+    ) {
+      [values[i], values[i + step]] = [values[i + step], values[i]];
+    }
+  }
+  yield* bitonicMergePadded(values, visibleLength, lo, step, ascending);
+  yield* bitonicMergePadded(values, visibleLength, lo + step, step, ascending);
+}
+
+function* bitonicSortPadded(values, visibleLength, lo, count, ascending) {
+  if (count <= 1) return;
+  const split = count / 2;
+  yield* bitonicSortPadded(values, visibleLength, lo, split, true);
+  yield* bitonicSortPadded(values, visibleLength, lo + split, split, false);
+  yield* bitonicMergePadded(values, visibleLength, lo, count, ascending);
+}
+
+function* bitonic(a) {
+  const n = a.length;
+  if (n === 0) return;
+  const paddedLength = nextPowerOfTwo(n);
+  const sentinel = Math.max(...a) + 1;
+  const values = a.concat(Array.from({ length: paddedLength - n }, () => sentinel));
+  yield* bitonicSortPadded(values, n, 0, paddedLength, true);
+  for (let i = 0; i < n; i++) yield* write(a, i, values[i]);
+  yield* sweep(a);
+}
+
 function* cycle(a) {
   const n = a.length;
   let placedAny = false;
@@ -1619,6 +1660,59 @@ def insertion_sort(arr: list[int]) -> None:
                 pos += 1
             result[pos], item = item, result[pos]
     return result`,
+    },
+  },
+  {
+    key: 'bitonic',
+    category: 'Miscellaneous',
+    name: 'Bitonic Sort',
+    tooltip: 'O(n log²n) — sorting network built from bitonic merges',
+    gen: bitonic,
+    docs: {
+      description:
+        'A comparison sorting network designed for parallel hardware. It recursively creates bitonic sequences, where one half rises and the other half falls, then merges each bitonic sequence into a fully sorted run using fixed compare-and-swap patterns. Classic Bitonic Sort is usually presented for powers of two; this implementation pads internally to the next power of two so arbitrary lengths still sort correctly.',
+      steps: [
+        'Recursively sort the first half ascending.',
+        'Recursively sort the second half descending.',
+        'Compare and swap across a fixed stride to form the requested direction.',
+        'Recursively merge the two smaller bitonic halves.',
+      ],
+      complexity: { best: 'O(n log²n)', worst: 'O(n log²n)', average: 'O(n log²n)', space: 'O(log n)' },
+      code: `def bitonic_sort(arr: list[int]) -> list[int]:
+    """Sort using a bitonic sorting-network pattern."""
+    if not arr:
+        return []
+
+    original_length = len(arr)
+    padded_length = next_power_of_two(original_length)
+    sentinel = max(arr) + 1
+    result = arr.copy() + [sentinel] * (padded_length - original_length)
+    bitonic_sort_rec(result, 0, len(result), True)
+    return result[:original_length]
+
+def bitonic_sort_rec(arr: list[int], low: int, count: int, ascending: bool) -> None:
+    if count <= 1:
+        return
+    split = count // 2
+    bitonic_sort_rec(arr, low, split, True)
+    bitonic_sort_rec(arr, low + split, count - split, False)
+    bitonic_merge(arr, low, count, ascending)
+
+def bitonic_merge(arr: list[int], low: int, count: int, ascending: bool) -> None:
+    if count <= 1:
+        return
+    step = count // 2
+    for i in range(low, low + step):
+        if (ascending and arr[i] > arr[i + step]) or (not ascending and arr[i] < arr[i + step]):
+            arr[i], arr[i + step] = arr[i + step], arr[i]
+    bitonic_merge(arr, low, step, ascending)
+    bitonic_merge(arr, low + step, step, ascending)
+
+def next_power_of_two(n: int) -> int:
+    power = 1
+    while power < n:
+        power <<= 1
+    return power`,
     },
   },
   {
