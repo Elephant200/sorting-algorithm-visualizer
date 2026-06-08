@@ -1594,21 +1594,22 @@ def insertion_sort(arr: list[int]) -> None:
     """Sort in place while minimizing writes."""
     result = arr.copy()
     n = len(result)
-    def sorted_from(start: int) -> bool:
-        return all(result[i - 1] <= result[i] for i in range(start + 1, n))
+
     for cycle_start in range(n - 1):
-        if sorted_from(cycle_start):
-            break
         item = result[cycle_start]
         pos = cycle_start
+
         for i in range(cycle_start + 1, n):
             if result[i] < item:
                 pos += 1
+
         if pos == cycle_start:
             continue
+
         while item == result[pos]:
             pos += 1
         result[pos], item = item, result[pos]
+
         while pos != cycle_start:
             pos = cycle_start
             for i in range(cycle_start + 1, n):
