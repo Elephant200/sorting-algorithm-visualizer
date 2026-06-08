@@ -167,7 +167,11 @@ function play() {
     return;
   }
   if (state.playing) return;
-  if (engine.done) engine.seek(0); // replay from the start
+  if (engine.done) {
+    engine.seek(0); // replay from the start
+    state.elapsedMs = 0;
+    renderFrame();
+  }
   state.playing = true;
   state.playStartedAt = performance.now();
   setPlayIcon(true);
