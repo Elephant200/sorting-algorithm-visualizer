@@ -743,7 +743,7 @@ export const algorithms = [
     gen: bubble,
     docs: {
       description:
-        'A simple comparison sort. It repeatedly steps through the list, compares adjacent elements, and swaps them if they are in the wrong order, so larger elements "bubble" toward the end on each pass. With an early-exit check, a list that is already sorted finishes in a single pass.',
+        'A simple comparison sort that repeatedly scans adjacent pairs and swaps inverted neighbors. Each pass pushes the largest remaining value toward the end of the unsorted region, so the sorted suffix grows from right to left. It is easy to understand and stable, but it does many local comparisons; the early-exit check is what gives it a fast best case on already sorted input.',
       steps: [
         'Compare the first two elements; swap if the first is greater.',
         'Move one position right and repeat across the array.',
@@ -777,7 +777,7 @@ export const algorithms = [
     gen: insertion,
     docs: {
       description:
-        'Builds the final sorted array one item at a time. Each new element is compared backwards into the already-sorted prefix and shifted into place. It is efficient on small or nearly-sorted data, stable, adaptive, and sorts in place.',
+        'Builds a sorted prefix one value at a time, much like sorting cards in your hand. For each new value, it walks left through the prefix, shifts larger values one slot to the right, and inserts the value into the gap. It is stable, in-place, and excellent on small or nearly sorted arrays because misplaced values usually travel only a short distance.',
       steps: [
         'Treat the first element as a sorted prefix of length one.',
         'Take the next element as the key.',
@@ -810,7 +810,7 @@ export const algorithms = [
     gen: selection,
     docs: {
       description:
-        'Splits the array into a sorted prefix and an unsorted remainder. Each pass scans the remainder for its minimum and swaps it to the front of the unsorted part. Because it always scans the whole remainder, its best and worst cases are identical — it never benefits from existing order.',
+        'Splits the array into a sorted prefix and an unsorted remainder. Each pass scans the entire remainder to find the minimum value, then swaps that minimum into the next prefix position. It performs very few swaps compared with Bubble Sort, but it is not adaptive: even a fully sorted array still requires the same complete scans.',
       steps: [
         'Find the minimum element in the unsorted remainder.',
         'Swap it to the boundary of the sorted prefix.',
@@ -841,7 +841,7 @@ export const algorithms = [
     gen: merge,
     docs: {
       description:
-        'A stable divide-and-conquer sort. It splits the array in half, recursively sorts each half, then merges the two sorted halves back together. Performance is a guaranteed O(n log n) regardless of the input, at the cost of O(n) auxiliary space.',
+        'A stable divide-and-conquer sort with predictable performance. It splits the array into halves until each subarray is trivially sorted, then merges neighboring sorted runs by repeatedly taking the smaller front value. Merge Sort does not depend on lucky pivots or existing order for its O(n log n) bound, but the merge step needs extra temporary storage.',
       steps: [
         'Divide the array into two halves.',
         'Recursively sort each half.',
@@ -883,7 +883,7 @@ def merge(left: list[int], right: list[int]) -> list[int]:
     gen: quick,
     docs: {
       description:
-        'A divide-and-conquer sort that picks a pivot and partitions the array so smaller elements come before it and larger ones after, then recurses on each side. Very fast on average and in place, but degrades to O(n²) when pivots split poorly (e.g. an already-sorted input with a last-element pivot).',
+        'A divide-and-conquer sort that chooses a pivot, partitions the range so smaller values land on one side and larger values on the other, then recursively sorts those partitions. This implementation uses the last element as the pivot, which keeps the code compact and the partition easy to see. It is usually very fast and in-place, but poor pivot choices create unbalanced recursion and can degrade to O(n²).',
       steps: [
         'Choose a pivot (here, the last element of the range).',
         'Partition so values ≤ pivot move left of it and the rest move right.',
@@ -923,7 +923,7 @@ def partition(arr: list[int], low: int, high: int) -> int:
     gen: heap,
     docs: {
       description:
-        'Builds a binary max-heap from the array, then repeatedly swaps the largest element (the root) to the end and restores the heap over the shrinking front. It sorts in place with a guaranteed O(n log n) bound and no recursion.',
+        'Turns the array into a binary max-heap, where every parent is at least as large as its children. The largest value is always at the root, so the algorithm swaps that root to the end, shrinks the heap, and sifts the new root down to restore the heap property. Heap Sort is in-place and has a guaranteed O(n log n) bound, though it is not stable and its memory access pattern is less cache-friendly than Merge Sort or Quick Sort.',
       steps: [
         'Build a max-heap so each parent is ≥ its children.',
         'Swap the root (maximum) with the last heap element.',
@@ -966,7 +966,7 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
     gen: cocktail,
     docs: {
       description:
-        'A bidirectional variation of bubble sort. Each round bubbles the largest element to the right end and then the smallest element back to the left end. Sweeping both ways clears small values stranded near the end ("turtles") faster than plain bubble sort.',
+        'A bidirectional variation of Bubble Sort. A forward pass bubbles the largest remaining value to the right, then a backward pass bubbles the smallest remaining value to the left. By shrinking both ends of the active range, Cocktail Shaker Sort handles small values trapped near the far end better than one-direction Bubble Sort while preserving the same simple adjacent-swap idea.',
       steps: [
         'Bubble the largest element rightward in a forward pass.',
         'Bubble the smallest element leftward in a backward pass.',
@@ -1004,7 +1004,7 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
     gen: comb,
     docs: {
       description:
-        'Improves on bubble sort by comparing elements a large gap apart and shrinking the gap by a factor of about 1.3 each pass until it reaches one. The wide early gaps move small values out of the tail quickly, eliminating bubble sort’s "turtle" problem.',
+        'Improves on Bubble Sort by comparing values that are far apart before it compares neighbors. The gap starts near the array length and shrinks by about 1.3 each pass until it reaches one, where the algorithm finishes with bubble-like adjacent passes. Those wide early comparisons move badly misplaced values long distances, which reduces the "turtle" problem that makes Bubble Sort slow on many inputs.',
       steps: [
         'Start with a gap equal to the array length.',
         'Compare and swap elements that are `gap` apart.',
@@ -1039,7 +1039,7 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
     gen: shell,
     docs: {
       description:
-        'A generalization of insertion sort that first sorts elements far apart, then progressively reduces the gap between compared elements. Moving items long distances early means that by the time the gap is one, the array is nearly sorted and the final insertion pass is cheap.',
+        'A generalization of Insertion Sort that first sorts interleaved subsequences separated by a gap. The gap gradually shrinks, so early passes can move values across large distances and later passes clean up local disorder. When the gap finally reaches one, Shell Sort becomes ordinary insertion sort over an array that is often already close to sorted; its exact complexity depends heavily on the chosen gap sequence.',
       steps: [
         'Choose a starting gap (here, half the length).',
         'Run a gapped insertion sort over the array.',
@@ -1074,7 +1074,7 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
     gen: tim,
     docs: {
       description:
-        'A hybrid, stable sort — the standard library sort in Python and Java. It finds naturally ordered "runs" in the data, pads short runs to a minimum length with binary insertion sort, then merges runs off a stack while maintaining size invariants that keep merges balanced. During merges, galloping mode bulk-copies consecutive winning elements after exponential search when one run dominates. It is adaptive: existing order in the input makes it approach O(n).',
+        'A hybrid, stable sort based on the strategy used by Python and Java standard library sorts. It scans for naturally ordered runs, reverses descending runs, extends short runs with binary insertion sort, and merges runs from a stack while maintaining balance rules. During merging, galloping searches can bulk-copy stretches when one run keeps winning. Timsort is adaptive: already ordered or partially ordered data can be processed much faster than random data.',
       steps: [
         'Compute a minimum run length from the array size.',
         'Scan for the next natural run, reversing it if it descends.',
@@ -1125,7 +1125,7 @@ def min_run_length(n: int) -> int:
     gen: radix,
     docs: {
       description:
-        'A non-comparison sort for integers. It sorts numbers digit by digit from least to most significant, using a stable counting sort as the per-digit subroutine. Runs in O(d × n) where d is the number of digits, independent of the data’s order.',
+        'A non-comparison sort for non-negative integers. It processes values digit by digit from least significant to most significant, using a stable counting sort for each digit so earlier digit ordering is preserved. Its cost depends on the number of digits and items rather than on pairwise comparisons, which makes it attractive when the key range and digit count are controlled.',
       steps: [
         'Find the maximum value to learn the digit count.',
         'Starting at the ones place, bucket items by the current digit.',
@@ -1170,7 +1170,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     gen: counting,
     docs: {
       description:
-        'A non-comparison sort for integers drawn from a small range. It tallies how many times each value occurs, turns those tallies into positions with a prefix sum, then writes each element straight to its slot. Runs in O(n + k) where k is the value range.',
+        'A non-comparison sort for integers drawn from a limited range. It counts how often each value appears, converts those counts into final positions with a prefix sum, and places each item directly into an output array. Counting Sort can be stable and linear in the number of items plus the value range, but it becomes wasteful when the range is much larger than the input.',
       steps: [
         'Count occurrences of every value into a count array.',
         'Take a running prefix sum so counts become end positions.',
@@ -1205,7 +1205,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     gen: bead,
     docs: {
       description:
-        'A non-comparison sort inspired by an abacus. Each value is represented as a column of beads; gravity lets beads fall into sorted columns. In software this simulation is mostly educational, and its cost depends on both the number of items and the maximum value m.',
+        'A non-comparison sort inspired by an abacus. Each value is represented as beads stacked up to that height, then the beads are allowed to "fall" so dense columns collect on one side. Reading the resulting column heights gives a sorted sequence. It is a memorable physical model for non-negative integers, but in software it is mostly educational because the work depends on both the number of values and the maximum value.',
       steps: [
         'Represent each value as that many beads.',
         'Count how many beads exist at each height.',
@@ -1240,7 +1240,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     gen: gnome,
     docs: {
       description:
-        'A deliberately awkward cousin of insertion sort. Insertion sort shifts a selected value left into a sorted prefix; gnome sort does the same local repair by repeatedly swapping adjacent inverted pairs and walking backward one step at a time. It is charmingly small and easy to animate, but it performs insertion sort’s idea with more shuffling around.',
+        'A deliberately awkward cousin of Insertion Sort. Instead of holding one key value and shifting a block, it repeatedly swaps adjacent inverted pairs and walks backward until the current value reaches its proper spot in the prefix. The result is conceptually close to insertion sort, but with more individual swaps. Its tiny control flow makes it charming to animate even though it is rarely practical.',
       steps: [
         'Start at the second element, just after the sorted prefix.',
         'If the adjacent pair is ordered, walk one step right.',
@@ -1270,7 +1270,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     gen: oddEven,
     docs: {
       description:
-        'A variation of bubble sort, also called brick sort. Bubble sort sweeps through every adjacent pair in order; odd-even sort splits that sweep into two phases: odd-indexed adjacent pairs, then even-indexed adjacent pairs. That split is useful for parallel hardware or teaching networks, though this visualizer records the phases sequentially.',
+        'A variation of Bubble Sort, also called Brick Sort. Instead of scanning every adjacent pair in one linear pass, it alternates between odd-indexed pairs and even-indexed pairs. Those two phases can be run in parallel on suitable hardware because pairs inside a phase do not overlap. In this visualizer they run sequentially, which makes the phase pattern easy to see.',
       steps: [
         'Compare and swap odd-indexed adjacent pairs.',
         'Compare and swap even-indexed adjacent pairs.',
@@ -1303,7 +1303,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     gen: cycle,
     docs: {
       description:
-        'An in-place comparison sort designed to minimize writes. It counts how many values are smaller than the current item to find its final position, writes it there, then keeps rotating displaced items until the cycle closes. This visual version also finishes immediately when the remaining suffix is already sorted, avoiding a long no-op tail.',
+        'An in-place comparison sort designed to minimize writes, useful as a teaching example for memory with limited write endurance. For each cycle start, it counts how many values are smaller than the current item to find that item’s final position, writes it there, then rotates the displaced item into its own final position until the cycle closes. This visual version also finishes immediately when the remaining suffix is already sorted, avoiding a long no-op tail.',
       steps: [
         'Pick the start of the next cycle.',
         'If the remaining suffix is already sorted, mark it done.',
@@ -1350,7 +1350,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
     gen: bogo,
     docs: {
       description:
-        'A deliberately terrible "generate and test" algorithm: shuffle the whole array at random, check if it happens to be sorted, and repeat. Expected work is O(n × n!), so it is only usable on a handful of elements — try it with a small array size.',
+        'A deliberately terrible "generate and test" algorithm. It checks whether the array is sorted; if not, it shuffles everything randomly and tries again. The expected number of shuffles grows factorially, so it is useful only as a joke, a probability lesson, or a warning about algorithms that rely on blind luck.',
       steps: [
         'Check whether the array is sorted.',
         'If it is, stop — you got lucky.',
