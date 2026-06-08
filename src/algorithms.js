@@ -253,10 +253,11 @@ function* quick(a) {
 }
 
 // Faithful Timsort: natural run detection, minrun-padded binary insertion
-// sort, and a run stack merged under Timsort's size invariants. (Galloping
-// mode is omitted — it is an optimization, not part of correctness.)
+// sort, galloping merges, and a run stack merged under Timsort's size invariants.
 
-const MIN_MERGE = 32;
+const MIN_MERGE = 24;
+const MIN_GALLOP = 7;
+let minGallop = MIN_GALLOP;
 
 function minRunLength(n) {
   let r = 0;
@@ -316,18 +317,167 @@ function* binaryInsertionSort(a, lo, hi, start) {
   }
 }
 
-// Stable merge of two adjacent runs via a copy of the (smaller) left run.
+// Exponential search + binary search; returns an offset into [0, len).
+function* gallopRight(keyIdx, key, getVal, len, hint, getIdx) {
+  let ofs = 1;
+  let lastOfs = 0;
+  if (key < getVal(hint)) {
+    const maxOfs = hint + 1;
+    while (ofs < maxOfs) {
+      yield compare(keyIdx, getIdx(hint - ofs));
+      if (key < getVal(hint - ofs)) {
+        lastOfs = ofs;
+        ofs = (ofs << 1) + 1;
+        if (ofs <= 0) ofs = maxOfs;
+      } else break;
+    }
+    if (ofs > maxOfs) ofs = maxOfs;
+    const tmp = lastOfs;
+    lastOfs = hint - ofs;
+    ofs = hint - tmp;
+  } else {
+    const maxOfs = len - hint;
+    while (ofs < maxOfs) {
+      yield compare(keyIdx, getIdx(hint + ofs));
+      if (key >= getVal(hint + ofs)) {
+        lastOfs = ofs;
+        ofs = (ofs << 1) + 1;
+        if (ofs <= 0) ofs = maxOfs;
+      } else break;
+    }
+    if (ofs > maxOfs) ofs = maxOfs;
+    lastOfs += hint;
+    ofs += hint;
+  }
+  lastOfs++;
+  while (lastOfs < ofs) {
+    const m = lastOfs + ((ofs - lastOfs) >>> 1);
+    yield compare(keyIdx, getIdx(m));
+    if (key < getVal(m)) ofs = m;
+    else lastOfs = m + 1;
+  }
+  return ofs;
+}
+
+function* gallopLeft(keyIdx, key, getVal, len, hint, getIdx) {
+  let lastOfs = 0;
+  let ofs = 1;
+  if (key > getVal(hint)) {
+    const maxOfs = len - hint;
+    while (ofs < maxOfs) {
+      yield compare(keyIdx, getIdx(hint + ofs));
+      if (key > getVal(hint + ofs)) {
+        lastOfs = ofs;
+        ofs = (ofs << 1) + 1;
+        if (ofs <= 0) ofs = maxOfs;
+      } else break;
+    }
+    if (ofs > maxOfs) ofs = maxOfs;
+    lastOfs += hint;
+    ofs += hint;
+  } else {
+    const maxOfs = hint + 1;
+    while (ofs < maxOfs) {
+      yield compare(keyIdx, getIdx(hint - ofs));
+      if (key <= getVal(hint - ofs)) {
+        lastOfs = ofs;
+        ofs = (ofs << 1) + 1;
+        if (ofs <= 0) ofs = maxOfs;
+      } else break;
+    }
+    if (ofs > maxOfs) ofs = maxOfs;
+    const tmp = lastOfs;
+    lastOfs = hint - ofs;
+    ofs = hint - tmp;
+  }
+  lastOfs++;
+  while (lastOfs < ofs) {
+    const m = lastOfs + ((ofs - lastOfs) >>> 1);
+    yield compare(keyIdx, getIdx(m));
+    if (key > getVal(m)) lastOfs = m + 1;
+    else ofs = m;
+  }
+  return ofs;
+}
+
+function* copyChunk(values, start, count, a, dest) {
+  for (let i = 0; i < count; i++) yield* write(a, dest + i, values[start + i]);
+}
+
+function* copyFromArray(a, src, count, dest) {
+  for (let i = 0; i < count; i++) yield* write(a, dest + i, a[src + i]);
+}
+
 function* mergeRuns(a, base1, len1, base2, len2) {
-  const hi = base2 + len2;
   const left = a.slice(base1, base1 + len1);
   let i = 0;
   let j = base2;
   let k = base1;
+  const hi = base2 + len2;
+  let localMinGallop = minGallop;
+
   while (i < len1 && j < hi) {
-    yield compare(k, j);
-    if (left[i] <= a[j]) yield* write(a, k++, left[i++]);
-    else yield* write(a, k++, a[j++]);
+    let count1 = 0;
+    let count2 = 0;
+
+    do {
+      yield compare(k, j);
+      if (a[j] < left[i]) {
+        yield* write(a, k++, a[j++]);
+        count2++;
+        count1 = 0;
+      } else {
+        yield* write(a, k++, left[i++]);
+        count1++;
+        count2 = 0;
+      }
+    } while (i < len1 && j < hi && (count1 | count2) < localMinGallop);
+
+    if (i >= len1 || j >= hi) break;
+
+    do {
+      count1 = yield* gallopRight(
+        j,
+        a[j],
+        (off) => left[i + off],
+        len1 - i,
+        0,
+        (off) => base1 + i + off
+      );
+      if (count1 !== 0) {
+        yield* copyChunk(left, i, count1, a, k);
+        k += count1;
+        i += count1;
+        if (i >= len1) break;
+      }
+      yield* write(a, k++, a[j++]);
+      if (j >= hi) break;
+
+      count2 = yield* gallopLeft(
+        base1 + i,
+        left[i],
+        (off) => a[j + off],
+        hi - j,
+        0,
+        (off) => j + off
+      );
+      if (count2 !== 0) {
+        yield* copyFromArray(a, j, count2, k);
+        k += count2;
+        j += count2;
+        if (j >= hi) break;
+      }
+      yield* write(a, k++, left[i++]);
+      if (i >= len1) break;
+
+      localMinGallop--;
+    } while (count1 >= MIN_GALLOP || count2 >= MIN_GALLOP);
+
+    if (localMinGallop < 0) localMinGallop = 0;
+    localMinGallop += 2;
   }
+
+  minGallop = localMinGallop < 1 ? 1 : localMinGallop;
   while (i < len1) yield* write(a, k++, left[i++]);
 }
 
@@ -366,6 +516,7 @@ function* mergeForceCollapse(a, runBase, runLen) {
 }
 
 function* tim(a) {
+  minGallop = MIN_GALLOP;
   const n = a.length;
   if (n < 2) return;
   if (n < MIN_MERGE) {
@@ -880,16 +1031,17 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
     gen: tim,
     docs: {
       description:
-        'A hybrid, stable sort — the standard library sort in Python and Java. It finds naturally ordered "runs" in the data, pads short runs to a minimum length with binary insertion sort, then merges runs off a stack while maintaining size invariants that keep merges balanced. It is adaptive: existing order in the input makes it approach O(n).',
+        'A hybrid, stable sort — the standard library sort in Python and Java. It finds naturally ordered "runs" in the data, pads short runs to a minimum length with binary insertion sort, then merges runs off a stack while maintaining size invariants that keep merges balanced. During merges, galloping mode bulk-copies consecutive winning elements after exponential search when one run dominates. It is adaptive: existing order in the input makes it approach O(n).',
       steps: [
         'Compute a minimum run length from the array size.',
         'Scan for the next natural run, reversing it if it descends.',
         'Pad runs shorter than minrun using binary insertion sort.',
         'Push each run on a stack and merge while size invariants are violated.',
+        'Switch to galloping mode when one run wins MIN_GALLOP times in a row.',
         'Force-merge the remaining runs into one sorted array.',
       ],
       complexity: { best: 'O(n)', worst: 'O(n log n)', average: 'O(n log n)', space: 'O(n)' },
-      code: `MIN_MERGE = 32
+      code: `MIN_MERGE = 24
 
 def tim_sort(arr: list[int]) -> list[int]:
     """Timsort: detect runs, pad to minrun, merge under size invariants."""
@@ -1004,7 +1156,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'bead',
-    category: 'Additional Algorithms',
+    category: 'Non-comparison',
     name: 'Bead Sort',
     tooltip: 'O(n × m) — simulates beads falling under gravity',
     gen: bead,
@@ -1069,7 +1221,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'odd-even',
-    category: 'Additional Algorithms',
+    category: 'Optimized Variants',
     name: 'Odd-Even Sort',
     tooltip: 'O(n²) — bubble sort split into odd/even phases',
     gen: oddEven,
@@ -1102,7 +1254,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'cycle',
-    category: 'Additional Algorithms',
+    category: 'Simple — O(n²)',
     name: 'Cycle Sort',
     tooltip: 'O(n²) — minimizes array writes by rotating cycles',
     gen: cycle,
