@@ -93,7 +93,11 @@ function groupByCategory(list) {
     if (!groups.has(algo.category)) groups.set(algo.category, []);
     groups.get(algo.category).push(algo);
   }
-  return groups;
+  return [...groups];
+}
+
+function flattenGroups(groups) {
+  return groups.flatMap(([, items]) => items);
 }
 
 export function buildAlgorithmButtons(container, onSelect) {
@@ -199,21 +203,29 @@ function caseButtonAttrs(algo, caseType) {
   return `data-algorithm="${algo.key}" data-case="${runnableCase(algo, caseType)}" data-tooltip="${escapeAttr(caseShape(algo, caseType))}"`;
 }
 
-function overviewHtml() {
-  const rows = algorithms
-    .map((algo) => {
-      const { complexity } = algo.docs;
-      return `
-        <tr>
-          <th scope="row">
-            <button class="overview-name" data-algorithm="${algo.key}">${algo.name}</button>
-          </th>
-          <td>${escapeHtml(briefPhrase(algo))}</td>
-          <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'best')}>${complexity.best}</button></td>
-          <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'random')}>${complexity.average}</button></td>
-          <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'worst')}>${complexity.worst}</button></td>
-        </tr>`;
-    })
+function overviewHtml(groups) {
+  const rows = groups
+    .map(
+      ([category, items]) => `
+        <tr class="overview-category-row">
+          <th scope="rowgroup" colspan="5">${category}</th>
+        </tr>
+        ${items
+          .map((algo) => {
+            const { complexity } = algo.docs;
+            return `
+              <tr>
+                <th scope="row">
+                  <button class="overview-name" data-algorithm="${algo.key}">${algo.name}</button>
+                </th>
+                <td>${escapeHtml(briefPhrase(algo))}</td>
+                <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'best')}>${complexity.best}</button></td>
+                <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'random')}>${complexity.average}</button></td>
+                <td><button class="complexity-run tooltip" ${caseButtonAttrs(algo, 'worst')}>${complexity.worst}</button></td>
+              </tr>`;
+          })
+          .join('')}`
+    )
     .join('');
 
   return `
@@ -287,10 +299,13 @@ function sectionHtml(algo) {
 
 export function buildModal({ sidebar, content }, onRunPreset) {
   setupFloatingTooltips();
+  const groups = groupByCategory(algorithms);
+  const orderedAlgorithms = flattenGroups(groups);
+
   sidebar.innerHTML =
     '<h3>Algorithms</h3>' +
     '<button class="sidebar-item sidebar-summary active" data-summary="true">Summary</button>' +
-    [...groupByCategory(algorithms)]
+    groups
       .map(
         ([category, items]) =>
           `<p class="sidebar-group">${category}</p>` +
@@ -303,7 +318,7 @@ export function buildModal({ sidebar, content }, onRunPreset) {
       )
       .join('');
 
-  content.innerHTML = overviewHtml() + algorithms.map(sectionHtml).join('');
+  content.innerHTML = overviewHtml(groups) + orderedAlgorithms.map(sectionHtml).join('');
 
   content.querySelectorAll('.run-button, .complexity-run, .case-card').forEach((btn) => {
     btn.addEventListener('click', () =>

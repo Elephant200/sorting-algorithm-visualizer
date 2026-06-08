@@ -736,6 +736,16 @@ button:disabled {
   letter-spacing: 0.07em;
 }
 
+.overview-category-row th {
+  padding: 12px;
+  background: var(--bg-1);
+  color: var(--sand-deep);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .overview-name,
 .complexity-run {
   width: 100%;
