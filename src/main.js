@@ -21,6 +21,7 @@ const MIN_SIZE = 3;
 const MAX_SIZE = 300;
 const DEFAULT_SIZE = 100;
 const DEFAULT_SPEED = 55;
+const LARGE_STEP = 50;
 
 const $ = (id) => document.getElementById(id);
 
@@ -32,9 +33,11 @@ const dom = {
   distribution: $('distribution'),
   newArray: $('new-array'),
   moreInfo: $('more-info'),
+  stepBackLarge: $('step-back-large'),
   stepBack: $('step-back'),
   playPause: $('play-pause'),
   stepForward: $('step-forward'),
+  stepForwardLarge: $('step-forward-large'),
   speed: $('speed'),
   progress: $('progress'),
   status: $('status'),
@@ -200,9 +203,11 @@ function togglePlay() {
   state.playing ? pause() : play();
 }
 
-function stepOnce(forward) {
+function stepMany(forward, count = 1) {
   pause();
-  forward ? engine.stepForward() : engine.stepBackward();
+  for (let i = 0; i < count; i++) {
+    if (forward ? !engine.stepForward() : !engine.stepBackward()) break;
+  }
   renderFrame();
 }
 
@@ -306,8 +311,10 @@ function bindEvents() {
   dom.moreInfo.addEventListener('click', openModal);
 
   dom.playPause.addEventListener('click', togglePlay);
-  dom.stepForward.addEventListener('click', () => stepOnce(true));
-  dom.stepBack.addEventListener('click', () => stepOnce(false));
+  dom.stepForward.addEventListener('click', () => stepMany(true));
+  dom.stepBack.addEventListener('click', () => stepMany(false));
+  dom.stepForwardLarge.addEventListener('click', () => stepMany(true, LARGE_STEP));
+  dom.stepBackLarge.addEventListener('click', () => stepMany(false, LARGE_STEP));
 
   dom.modalClose.addEventListener('click', closeModal);
   dom.modalOverlay.addEventListener('click', (e) => {
