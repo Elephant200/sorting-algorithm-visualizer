@@ -204,6 +204,10 @@ function togglePlay() {
 }
 
 function stepMany(forward, count = 1) {
+  if (engine.total === 0) {
+    promptPickAlgorithm();
+    return;
+  }
   pause();
   for (let i = 0; i < count; i++) {
     if (forward ? !engine.stepForward() : !engine.stepBackward()) break;
