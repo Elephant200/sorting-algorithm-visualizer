@@ -40,11 +40,6 @@ function isSorted(a) {
   return true;
 }
 
-function isSortedFrom(a, start) {
-  for (let i = start + 1; i < a.length; i++) if (a[i - 1] > a[i]) return false;
-  return true;
-}
-
 function shuffleInPlace(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -1052,76 +1047,41 @@ function* bitonic(a) {
 
 function* cycle(a) {
   const n = a.length;
-  let placedAny = false;
-  const finalized = new Set();
-  const rangeFrom = (start) => Array.from({ length: n - start }, (_, offset) => start + offset);
-  const finalize = (...indices) => {
-    const fresh = indices.filter((index) => !finalized.has(index));
-    for (const index of fresh) finalized.add(index);
-    return fresh.length > 0 ? markSorted(...fresh) : null;
-  };
-  const markRemaining = (start) => {
-    return finalize(...rangeFrom(start));
-  };
-
   for (let cycleStart = 0; cycleStart < n - 1; cycleStart++) {
-    if (isSortedFrom(a, cycleStart)) {
-      const done = markRemaining(cycleStart);
-      if (done) yield done;
-      return;
-    }
-
     let item = a[cycleStart];
     let pos = cycleStart;
+
     for (let i = cycleStart + 1; i < n; i++) {
       yield compare(i, cycleStart);
       if (a[i] < item) pos++;
     }
+
     if (pos === cycleStart) {
-      const donePosition = finalize(cycleStart);
-      if (donePosition) yield donePosition;
-      if (placedAny && isSorted(a)) {
-        const done = markRemaining(cycleStart + 1);
-        if (done) yield done;
-        return;
-      }
+      yield markSorted(cycleStart);
       continue;
     }
+
     while (item === a[pos]) pos++;
-    if (pos !== cycleStart) {
-      const prev = a[pos];
-      yield* write(a, pos, item);
-      const donePosition = finalize(pos);
-      if (donePosition) yield donePosition;
-      item = prev;
-      placedAny = true;
-    }
+    let prev = a[pos];
+    yield* write(a, pos, item);
+    yield markSorted(pos);
+    item = prev;
+
     while (pos !== cycleStart) {
       pos = cycleStart;
       for (let i = cycleStart + 1; i < n; i++) {
         yield compare(i, cycleStart);
         if (a[i] < item) pos++;
       }
+
       while (item === a[pos]) pos++;
-      const prev = a[pos];
+      prev = a[pos];
       yield* write(a, pos, item);
-      const donePosition = finalize(pos);
-      if (donePosition) yield donePosition;
+      yield markSorted(pos);
       item = prev;
-      placedAny = true;
-    }
-    const donePosition = finalize(cycleStart);
-    if (donePosition) yield donePosition;
-    if (isSorted(a)) {
-      const done = markRemaining(cycleStart + 1);
-      if (done) yield done;
-      return;
     }
   }
-  if (n > 0) {
-    const donePosition = finalize(n - 1);
-    if (donePosition) yield donePosition;
-  }
+  if (n > 0) yield markSorted(n - 1);
 }
 
 // Shuffles until sorted. Only sensible on a handful of elements; the engine's
@@ -2100,13 +2060,13 @@ def insertion_sort(arr: list[int]) -> None:
     gen: cycle,
     docs: {
       description:
-        'An in-place comparison sort designed to minimize writes, useful as a teaching example for memory with limited write endurance. For each cycle start, it counts how many values are smaller than the current item to find that item’s final position, writes it there, then rotates the displaced item into its own final position until the cycle closes. This visual version also finishes immediately when the remaining suffix is already sorted, avoiding a long no-op tail.',
+        'An in-place comparison sort designed to minimize writes, useful as a teaching example for memory with limited write endurance. For each cycle start, it counts how many values are smaller than the current item to find that item’s final position, writes it there, then rotates the displaced item into its own final position until the cycle closes. The implementation follows the canonical cycle sort structure and marks each placement as sorted for visualization.',
       steps: [
         'Pick the start of the next cycle.',
-        'If the remaining suffix is already sorted, mark it done.',
         'Count smaller values to find the item’s final position.',
         'Write the item there, displacing the previous occupant.',
         'Repeat with displaced items until the cycle returns to the start.',
+        'Advance to the next cycle start and repeat.',
       ],
       complexity: { best: 'O(n)', worst: 'O(n²)', average: 'O(n²)', space: 'O(1)' },
       code: `def cycle_sort(arr: list[int]) -> list[int]:
