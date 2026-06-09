@@ -18,7 +18,7 @@ import {
 } from './ui.js';
 
 const MIN_SIZE = 3;
-const MAX_SIZE = 300;
+const MAX_SIZE = 1000;
 const DEFAULT_SIZE = 100;
 const DEFAULT_SPEED = 55;
 const LARGE_STEP = 50;

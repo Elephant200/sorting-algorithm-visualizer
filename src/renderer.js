@@ -5,6 +5,9 @@
 
 export function createRenderer({ container, stats }) {
   let bars = [];
+  let heightCache = [];
+  let classCache = [];
+  let statCache = {};
   let cachedHeight = 0;
   let cachedWidth = 0;
   let maxValue = 1;
@@ -28,6 +31,8 @@ export function createRenderer({ container, stats }) {
       return bar;
     });
     container.appendChild(frag);
+    heightCache = new Array(array.length).fill('');
+    classCache = new Array(array.length).fill('');
     maxValue = Math.max(...array, 1);
     measure();
     applyWidths(array.length);
@@ -46,7 +51,22 @@ export function createRenderer({ container, stats }) {
   function drawHeights(array) {
     const scale = cachedHeight / maxValue;
     for (let i = 0; i < array.length; i++) {
-      bars[i].style.height = `${Math.max(2, array[i] * scale)}px`;
+      setBarHeight(i, array[i], scale);
+    }
+  }
+
+  function setBarHeight(i, value, scale) {
+    const height = `${Math.max(2, value * scale)}px`;
+    if (heightCache[i] !== height) {
+      bars[i].style.height = height;
+      heightCache[i] = height;
+    }
+  }
+
+  function setBarClass(i, cls) {
+    if (classCache[i] !== cls) {
+      bars[i].className = cls;
+      classCache[i] = cls;
     }
   }
 
@@ -73,29 +93,35 @@ export function createRenderer({ container, stats }) {
     }
 
     for (let i = 0; i < array.length; i++) {
-      const bar = bars[i];
-      bar.style.height = `${Math.max(2, array[i] * scale)}px`;
+      setBarHeight(i, array[i], scale);
       let cls = 'bar';
       if (sorted.has(i)) cls += ' sorted';
       else if (pivotIdx === i) cls += ' pivot';
       else if (swapSet && swapSet.includes(i)) cls += ' swapping';
       else if (compareSet && compareSet.includes(i)) cls += ' comparing';
-      bar.className = cls;
+      setBarClass(i, cls);
     }
   }
 
   function clearHighlights(array, sorted) {
     for (let i = 0; i < array.length; i++) {
-      bars[i].className = sorted.has(i) ? 'bar sorted' : 'bar';
+      setBarClass(i, sorted.has(i) ? 'bar sorted' : 'bar');
     }
   }
 
   function setStats({ comparisons, writes, shuffles }, timeSec, isBogo) {
     stats.panel.classList.toggle('is-bogo', !!isBogo);
-    stats.comparisons.textContent = comparisons;
-    stats.writes.textContent = writes;
-    stats.shuffles.textContent = shuffles;
-    stats.time.textContent = timeSec.toFixed(2);
+    setStat('comparisons', stats.comparisons, comparisons.toLocaleString());
+    setStat('writes', stats.writes, writes.toLocaleString());
+    setStat('shuffles', stats.shuffles, shuffles.toLocaleString());
+    setStat('time', stats.time, timeSec.toFixed(2));
+  }
+
+  function setStat(key, node, value) {
+    if (statCache[key] !== value) {
+      node.textContent = value;
+      statCache[key] = value;
+    }
   }
 
   return { setArray, relayout, frame, clearHighlights, drawHeights, setStats };
