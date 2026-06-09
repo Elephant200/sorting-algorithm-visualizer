@@ -323,10 +323,197 @@ function* introspective(a) {
   yield* sweep(a);
 }
 
+function* dualPivotPartition(a, lo, hi) {
+  yield compare(lo, hi);
+  if (a[lo] > a[hi]) yield* swap(a, lo, hi);
+  yield pivot(lo);
+  yield pivot(hi);
+
+  const leftPivot = a[lo];
+  const rightPivot = a[hi];
+  let lt = lo + 1;
+  let gt = hi - 1;
+  let i = lt;
+
+  while (i <= gt) {
+    yield compare(i, lo);
+    if (a[i] < leftPivot) {
+      if (i !== lt) yield* swap(a, i, lt);
+      lt++;
+      i++;
+      continue;
+    }
+
+    yield compare(i, hi);
+    if (a[i] > rightPivot) {
+      while (i < gt) {
+        yield compare(gt, hi);
+        if (a[gt] <= rightPivot) break;
+        gt--;
+      }
+      if (i !== gt) yield* swap(a, i, gt);
+      gt--;
+      yield compare(i, lo);
+      if (a[i] < leftPivot) {
+        if (i !== lt) yield* swap(a, i, lt);
+        lt++;
+      }
+    }
+    i++;
+  }
+
+  lt--;
+  gt++;
+  if (lo !== lt) yield* swap(a, lo, lt);
+  if (hi !== gt) yield* swap(a, hi, gt);
+  return [lt, gt];
+}
+
+function* dualPivotQuickSort(a, lo, hi) {
+  if (lo >= hi) {
+    if (lo === hi) yield markSorted(lo);
+    return;
+  }
+  const [lp, rp] = yield* dualPivotPartition(a, lo, hi);
+  yield markSorted(lp, rp);
+  yield* dualPivotQuickSort(a, lo, lp - 1);
+  if (a[lp] < a[rp]) yield* dualPivotQuickSort(a, lp + 1, rp - 1);
+  yield* dualPivotQuickSort(a, rp + 1, hi);
+}
+
+function* dualPivot(a) {
+  yield* dualPivotQuickSort(a, 0, a.length - 1);
+  yield* sweep(a);
+}
+
+function* medianOfThree(a, lo, mid, hi) {
+  yield compare(mid, lo);
+  if (a[mid] < a[lo]) yield* swap(a, mid, lo);
+  yield compare(hi, mid);
+  if (a[hi] < a[mid]) yield* swap(a, hi, mid);
+  yield compare(mid, lo);
+  if (a[mid] < a[lo]) yield* swap(a, mid, lo);
+  return mid;
+}
+
+function* pdqPartition(a, lo, hi) {
+  const mid = lo + ((hi - lo) >> 1);
+  const pivotIndex = yield* medianOfThree(a, lo, mid, hi - 1);
+  if (pivotIndex !== lo) yield* swap(a, lo, pivotIndex);
+  yield pivot(lo);
+  const pivotValue = a[lo];
+  let i = lo + 1;
+  let j = hi - 1;
+  let alreadyPartitioned = true;
+
+  while (true) {
+    while (i <= j) {
+      yield compare(i, lo);
+      if (a[i] >= pivotValue) break;
+      i++;
+    }
+    while (i <= j) {
+      yield compare(j, lo);
+      if (a[j] <= pivotValue) break;
+      j--;
+    }
+    if (i >= j) break;
+    yield* swap(a, i, j);
+    alreadyPartitioned = false;
+    i++;
+    j--;
+  }
+
+  if (lo !== j) yield* swap(a, lo, j);
+  return { pivot: j, alreadyPartitioned };
+}
+
+function* partialInsertionSort(a, lo, hi) {
+  let moves = 0;
+  const moveLimit = 8;
+  for (let i = lo + 1; i < hi; i++) {
+    const key = a[i];
+    let j = i - 1;
+    while (j >= lo) {
+      yield compare(j, j + 1);
+      if (a[j] <= key) break;
+      if (++moves > moveLimit) {
+        yield* write(a, j + 1, key);
+        return false;
+      }
+      yield* write(a, j + 1, a[j]);
+      j--;
+    }
+    yield* write(a, j + 1, key);
+  }
+  return true;
+}
+
+function* breakPatterns(a, lo, hi) {
+  const size = hi - lo;
+  if (size < 8) return;
+  const mid = lo + (size >> 1);
+  const offsets = [-1, 0, 1];
+  let seed = size;
+  const nextIndex = () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return lo + Math.abs(seed) % size;
+  };
+
+  for (const offset of offsets) {
+    const i = mid + offset;
+    const j = nextIndex();
+    if (i >= lo && i < hi && i !== j) yield* swap(a, i, j);
+  }
+}
+
+function* pdqsortRange(a, lo, hi, badAllowed, leftMost = true) {
+  while (hi - lo > 16) {
+    const { pivot: p, alreadyPartitioned } = yield* pdqPartition(a, lo, hi);
+    const leftSize = p - lo;
+    const rightSize = hi - (p + 1);
+    const highlyUnbalanced = leftSize < (hi - lo) / 8 || rightSize < (hi - lo) / 8;
+
+    if (highlyUnbalanced) {
+      badAllowed--;
+      if (badAllowed === 0) {
+        yield* heapSortRange(a, lo, hi);
+        return;
+      }
+      yield* breakPatterns(a, lo, p);
+      yield* breakPatterns(a, p + 1, hi);
+    } else if (alreadyPartitioned) {
+      const leftDone = yield* partialInsertionSort(a, lo, p);
+      const rightDone = yield* partialInsertionSort(a, p + 1, hi);
+      if (leftDone && rightDone) return;
+    }
+
+    yield markSorted(p);
+    if (leftSize < rightSize) {
+      yield* pdqsortRange(a, lo, p, badAllowed, leftMost);
+      lo = p + 1;
+      leftMost = false;
+    } else {
+      yield* pdqsortRange(a, p + 1, hi, badAllowed, false);
+      hi = p;
+    }
+  }
+
+  yield* insertionRange(a, lo, hi);
+}
+
+function* pdqsort(a) {
+  const badAllowed = a.length > 1 ? 2 * Math.floor(Math.log2(a.length)) : 0;
+  yield* pdqsortRange(a, 0, a.length, badAllowed);
+  yield* sweep(a);
+}
+
 // Faithful Timsort: natural run detection, minrun-padded binary insertion
 // sort, galloping merges, and a run stack merged under Timsort's size invariants.
 
-const MIN_MERGE = 24;
+const MIN_MERGE = 32;
 const MIN_GALLOP = 7;
 let minGallop = MIN_GALLOP;
 
@@ -620,6 +807,83 @@ function* tim(a) {
   yield* sweep(a);
 }
 
+function nodePower(n, s1, n1, s2, n2) {
+  const denominator = 2 * n;
+  let left = 2 * s1 + n1;
+  let right = 2 * s2 + n2;
+  let power = 0;
+
+  while (true) {
+    power++;
+    left *= 2;
+    right *= 2;
+    const leftBit = left >= denominator ? 1 : 0;
+    const rightBit = right >= denominator ? 1 : 0;
+    if (leftBit !== rightBit) return power;
+    if (leftBit) left -= denominator;
+    if (rightBit) right -= denominator;
+  }
+}
+
+function* mergePowerAt(a, pending, i) {
+  const left = pending[i];
+  const right = pending[i + 1];
+  pending[i] = {
+    base: left.base,
+    len: left.len + right.len,
+    power: left.power,
+  };
+  pending.splice(i + 1, 1);
+  yield* mergeRuns(a, left.base, left.len, right.base, right.len);
+}
+
+function* foundNewPowerRun(a, pending, next, n) {
+  const current = pending[pending.length - 1];
+  const power = nodePower(n, current.base, current.len, next.base, next.len);
+  while (pending.length > 1 && pending[pending.length - 2].power > power) {
+    yield* mergePowerAt(a, pending, pending.length - 2);
+  }
+  pending[pending.length - 1].power = power;
+  pending.push({ ...next, power: 0 });
+}
+
+function* powerForceCollapse(a, pending) {
+  while (pending.length > 1) {
+    yield* mergePowerAt(a, pending, pending.length - 2);
+  }
+}
+
+function* powersort(a) {
+  minGallop = MIN_GALLOP;
+  const n = a.length;
+  if (n < 2) return;
+  if (n < MIN_MERGE) {
+    const runLen = yield* countRunAndMakeAscending(a, 0, n);
+    yield* binaryInsertionSort(a, 0, n, runLen);
+    yield* sweep(a);
+    return;
+  }
+
+  const minRun = minRunLength(n);
+  const pending = [];
+  let low = 0;
+  while (low < n) {
+    let runLength = yield* countRunAndMakeAscending(a, low, n);
+    if (runLength < minRun) {
+      const force = Math.min(n - low, minRun);
+      yield* binaryInsertionSort(a, low, low + force, low + runLength);
+      runLength = force;
+    }
+    const run = { base: low, len: runLength, power: 0 };
+    if (pending.length === 0) pending.push(run);
+    else yield* foundNewPowerRun(a, pending, run, n);
+    low += runLength;
+  }
+
+  yield* powerForceCollapse(a, pending);
+  yield* sweep(a);
+}
+
 // --- non-comparison family ---------------------------------------------------
 
 function* radix(a) {
@@ -873,12 +1137,12 @@ function* bogo(a) {
 
 // --- registry: single source of truth for UI + docs -------------------------
 
-export const algorithms = [
+const algorithmRegistry = [
   {
     key: 'bubble',
-    category: 'Simple — O(n²)',
+    category: 'Simple',
     name: 'Bubble Sort',
-    tooltip: 'O(n²) — compares adjacent elements and swaps if out of order',
+    tooltip: 'O(n²) avg/worst — teaching sort; compares adjacent pairs and swaps inversions',
     gen: bubble,
     docs: {
       description:
@@ -910,9 +1174,9 @@ export const algorithms = [
   },
   {
     key: 'insertion',
-    category: 'Simple — O(n²)',
+    category: 'Simple',
     name: 'Insertion Sort',
-    tooltip: 'O(n²) — builds the sorted list one element at a time',
+    tooltip: 'O(n²) avg/worst — small/nearly-sorted data; shifts a key into a sorted prefix',
     gen: insertion,
     docs: {
       description:
@@ -943,9 +1207,9 @@ export const algorithms = [
   },
   {
     key: 'selection',
-    category: 'Simple — O(n²)',
+    category: 'Simple',
     name: 'Selection Sort',
-    tooltip: 'O(n²) — repeatedly selects the minimum element',
+    tooltip: 'O(n²) — low-write teaching sort; selects the minimum for each output position',
     gen: selection,
     docs: {
       description:
@@ -974,9 +1238,9 @@ export const algorithms = [
   },
   {
     key: 'merge',
-    category: 'Efficient — O(n log n)',
+    category: 'Efficient / Gap-Based',
     name: 'Merge Sort',
-    tooltip: 'O(n log n) — divides and merges sorted halves',
+    tooltip: 'O(n log n) — stable general sort; recursively merges sorted halves',
     gen: merge,
     docs: {
       description:
@@ -1016,9 +1280,9 @@ def merge(left: list[int], right: list[int]) -> list[int]:
   },
   {
     key: 'quick',
-    category: 'Efficient — O(n log n)',
+    category: 'Efficient / Gap-Based',
     name: 'Quick Sort',
-    tooltip: 'O(n log n) avg — partitions around a pivot',
+    tooltip: 'O(n log n) avg — in-place general sort; partitions around a last-element pivot',
     gen: quick,
     docs: {
       description:
@@ -1056,9 +1320,9 @@ def partition(arr: list[int], low: int, high: int) -> int:
   },
   {
     key: 'heap',
-    category: 'Efficient — O(n log n)',
+    category: 'Efficient / Gap-Based',
     name: 'Heap Sort',
-    tooltip: 'O(n log n) — sorts via a binary max-heap',
+    tooltip: 'O(n log n) — guaranteed in-place sort; builds a max-heap then extracts maxima',
     gen: heap,
     docs: {
       description:
@@ -1099,9 +1363,9 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
   },
   {
     key: 'cocktail',
-    category: 'Optimized Variants',
+    category: 'Simple',
     name: 'Cocktail Shaker Sort',
-    tooltip: 'O(n²) — bidirectional bubble sort',
+    tooltip: 'O(n²) avg/worst — bidirectional bubble variant; sweeps forward then backward',
     gen: cocktail,
     docs: {
       description:
@@ -1139,10 +1403,10 @@ def sift_down(arr: list[int], root: int, end: int) -> None:
     },
   },
   {
-    key: 'introspective',
-    category: 'Optimized Variants',
-    name: 'Introspective Sort',
-    tooltip: 'O(n log n) — quicksort with a heap-sort fallback',
+    key: 'introsort',
+    category: 'Real-World Implementations',
+    name: 'Introsort',
+    tooltip: 'O(n log n) — C++ std::sort style hybrid; quicksort falls back to heapsort',
     gen: introspective,
     docs: {
       description:
@@ -1218,9 +1482,9 @@ def heapify(arr: list[int], count: int, root: int, offset: int) -> None:
   },
   {
     key: 'comb',
-    category: 'Optimized Variants',
+    category: 'Efficient / Gap-Based',
     name: 'Comb Sort',
-    tooltip: 'O(n²) worst — bubble sort with shrinking gap',
+    tooltip: 'O(n²) worst — gap-based bubble variant; shrinks a comb gap toward one',
     gen: comb,
     docs: {
       description:
@@ -1253,9 +1517,9 @@ def heapify(arr: list[int], count: int, root: int, offset: int) -> None:
   },
   {
     key: 'shell',
-    category: 'Optimized Variants',
+    category: 'Efficient / Gap-Based',
     name: 'Shell Sort',
-    tooltip: 'O(n log²n) — gapped insertion sort',
+    tooltip: 'O(n log²n) avg — gap-based insertion sort; halves the gap to one',
     gen: shell,
     docs: {
       description:
@@ -1288,9 +1552,9 @@ def heapify(arr: list[int], count: int, root: int, offset: int) -> None:
   },
   {
     key: 'tim',
-    category: 'Optimized Variants',
-    name: 'Tim Sort',
-    tooltip: 'O(n log n) — insertion-sorted runs merged together',
+    category: 'Real-World Implementations',
+    name: 'Timsort',
+    tooltip: 'O(n log n) avg/worst — Python/Java-style stable sort; detects runs and merges them',
     gen: tim,
     docs: {
       description:
@@ -1304,7 +1568,7 @@ def heapify(arr: list[int], count: int, root: int, offset: int) -> None:
         'Force-merge the remaining runs into one sorted array.',
       ],
       complexity: { best: 'O(n)', worst: 'O(n log n)', average: 'O(n log n)', space: 'O(n)' },
-      code: `MIN_MERGE = 24
+      code: `MIN_MERGE = 32
 
 def tim_sort(arr: list[int]) -> list[int]:
     """A compact Timsort-style implementation."""
@@ -1392,10 +1656,217 @@ def merge_runs(arr: list[int], base1: int, len1: int, base2: int, len2: int) -> 
     },
   },
   {
+    key: 'powersort',
+    category: 'Real-World Implementations',
+    name: 'CPython Powersort',
+    tooltip: 'O(n log n) avg/worst — Python list.sort() strategy; detects runs and merges by node power',
+    gen: powersort,
+    docs: {
+      description:
+        'CPython Powersort is the stable adaptive merge sort used by modern Python list.sort() and sorted(). It keeps Timsort’s natural-run detection, descending-run reversal, minrun extension by binary insertion sort, and galloping merge machinery, but replaces Timsort’s older stack invariants with a node-power merge policy. The node power estimates where adjacent runs belong in a near-optimal binary merge tree, so runs are merged when the stack power order says delaying would make the merge tree worse.',
+      steps: [
+        'Scan the next natural ascending or descending run.',
+        'Reverse descending runs so every run is ascending.',
+        'Extend short runs to minrun with binary insertion sort.',
+        'Compute the previous run’s node power from the midpoints of two adjacent runs.',
+        'Merge pending runs while their stored power is deeper than the new power.',
+        'Force-merge the stack after all runs have been discovered.',
+      ],
+      complexity: { best: 'O(n)', worst: 'O(n log n)', average: 'O(n log n)', space: 'O(n)' },
+      code: `MIN_MERGE = 32
+
+def powersort(arr: list[int]) -> list[int]:
+    """CPython-style Powersort: natural runs plus a node-power merge policy."""
+    result = arr.copy()
+    n = len(result)
+    if n < 2:
+        return result
+
+    min_run = min_run_length(n)
+    pending = []
+    low = 0
+    while low < n:
+        run_len = count_run_and_make_ascending(result, low, n)
+        if run_len < min_run:
+            force = min(n - low, min_run)
+            binary_insertion_sort(result, low, low + force, low + run_len)
+            run_len = force
+
+        run = [low, run_len, 0]
+        if not pending:
+            pending.append(run)
+        else:
+            found_new_run(result, pending, run, n)
+        low += run_len
+
+    while len(pending) > 1:
+        merge_at(result, pending, len(pending) - 2)
+    return result
+
+def powerloop(n: int, s1: int, n1: int, s2: int, n2: int) -> int:
+    denominator = 2 * n
+    left = 2 * s1 + n1
+    right = 2 * s2 + n2
+    power = 0
+    while True:
+        power += 1
+        left *= 2
+        right *= 2
+        left_bit = left >= denominator
+        right_bit = right >= denominator
+        if left_bit != right_bit:
+            return power
+        if left_bit:
+            left -= denominator
+        if right_bit:
+            right -= denominator
+
+def found_new_run(arr: list[int], pending: list[list[int]], run: list[int], n: int) -> None:
+    current = pending[-1]
+    power = powerloop(n, current[0], current[1], run[0], run[1])
+    while len(pending) > 1 and pending[-2][2] > power:
+        merge_at(arr, pending, len(pending) - 2)
+    pending[-1][2] = power
+    pending.append(run)`,
+    },
+  },
+  {
+    key: 'dual-pivot',
+    category: 'Real-World Implementations',
+    name: 'Dual-Pivot Quicksort',
+    tooltip: 'O(n log n) avg — Java primitive-array style sort; partitions into three regions with two pivots',
+    gen: dualPivot,
+    docs: {
+      description:
+        'Dual-Pivot Quicksort is the Yaroslavskiy-style quicksort family used for primitive arrays in Java. It chooses two pivots, orders them, partitions the range into values below the left pivot, between the pivots, and above the right pivot, then recursively sorts the three regions. This visualizer uses the canonical two-pivot partition shape so the three-way split is easy to inspect.',
+      steps: [
+        'Use the first and last values as pivots, swapping them if needed.',
+        'Walk through the middle region with three pointers.',
+        'Move values below the left pivot to the left side.',
+        'Move values above the right pivot to the right side.',
+        'Swap both pivots into their final boundaries.',
+        'Recursively sort the left, middle, and right partitions.',
+      ],
+      complexity: { best: 'O(n log n)', worst: 'O(n²)', average: 'O(n log n)', space: 'O(log n)' },
+      code: `def dual_pivot_quicksort(arr: list[int]) -> list[int]:
+    """Sort using Yaroslavskiy's dual-pivot partitioning scheme."""
+    result = arr.copy()
+    sort(result, 0, len(result) - 1)
+    return result
+
+def sort(arr: list[int], low: int, high: int) -> None:
+    if low >= high:
+        return
+    lp, rp = partition(arr, low, high)
+    sort(arr, low, lp - 1)
+    if arr[lp] < arr[rp]:
+        sort(arr, lp + 1, rp - 1)
+    sort(arr, rp + 1, high)
+
+def partition(arr: list[int], low: int, high: int) -> tuple[int, int]:
+    if arr[low] > arr[high]:
+        arr[low], arr[high] = arr[high], arr[low]
+
+    left_pivot = arr[low]
+    right_pivot = arr[high]
+    lt = low + 1
+    gt = high - 1
+    i = lt
+
+    while i <= gt:
+        if arr[i] < left_pivot:
+            arr[i], arr[lt] = arr[lt], arr[i]
+            lt += 1
+        elif arr[i] > right_pivot:
+            while arr[gt] > right_pivot and i < gt:
+                gt -= 1
+            arr[i], arr[gt] = arr[gt], arr[i]
+            gt -= 1
+            if arr[i] < left_pivot:
+                arr[i], arr[lt] = arr[lt], arr[i]
+                lt += 1
+        i += 1
+
+    lt -= 1
+    gt += 1
+    arr[low], arr[lt] = arr[lt], arr[low]
+    arr[high], arr[gt] = arr[gt], arr[high]
+    return lt, gt`,
+    },
+  },
+  {
+    key: 'pdqsort',
+    category: 'Real-World Implementations',
+    name: 'PDQsort',
+    tooltip: 'O(n log n) avg/worst — pattern-defeating quicksort; breaks bad patterns and falls back to heapsort',
+    gen: pdqsort,
+    docs: {
+      description:
+        'PDQsort, short for pattern-defeating quicksort, is Orson Peters’s refinement of Introsort. It keeps quicksort’s fast partitioning, uses insertion sort on small ranges, detects already partitioned data, attempts a tiny partial insertion sort on nearly sorted partitions, breaks suspicious patterns after highly unbalanced partitions, and falls back to Heap Sort when too many bad partitions occur.',
+      steps: [
+        'Choose a median-of-three pivot for the current range.',
+        'Partition values below and above the pivot.',
+        'Use insertion sort for small partitions.',
+        'If a partition was already clean, try a bounded partial insertion sort.',
+        'After highly unbalanced partitions, perturb the middle elements to defeat patterns.',
+        'When the bad-partition budget is exhausted, heap-sort the range.',
+      ],
+      complexity: { best: 'O(n)', worst: 'O(n log n)', average: 'O(n log n)', space: 'O(log n)' },
+      code: `def pdqsort(arr: list[int]) -> list[int]:
+    """Pattern-defeating quicksort in the style of pdqsort."""
+    result = arr.copy()
+    bad_allowed = 2 * (len(result).bit_length() - 1)
+    sort(result, 0, len(result), bad_allowed)
+    return result
+
+def sort(arr: list[int], lo: int, hi: int, bad_allowed: int) -> None:
+    while hi - lo > 16:
+        pivot = partition(arr, lo, hi)
+        left = pivot - lo
+        right = hi - pivot - 1
+
+        if left < (hi - lo) // 8 or right < (hi - lo) // 8:
+            bad_allowed -= 1
+            if bad_allowed == 0:
+                heap_sort_range(arr, lo, hi)
+                return
+            break_patterns(arr, lo, pivot)
+            break_patterns(arr, pivot + 1, hi)
+
+        if left < right:
+            sort(arr, lo, pivot, bad_allowed)
+            lo = pivot + 1
+        else:
+            sort(arr, pivot + 1, hi, bad_allowed)
+            hi = pivot
+
+    insertion_sort_range(arr, lo, hi)
+
+def partition(arr: list[int], lo: int, hi: int) -> int:
+    mid = lo + (hi - lo) // 2
+    median_of_three(arr, lo, mid, hi - 1)
+    arr[lo], arr[mid] = arr[mid], arr[lo]
+    pivot = arr[lo]
+    i, j = lo + 1, hi - 1
+    while True:
+        while i <= j and arr[i] < pivot:
+            i += 1
+        while i <= j and arr[j] > pivot:
+            j -= 1
+        if i >= j:
+            break
+        arr[i], arr[j] = arr[j], arr[i]
+        i += 1
+        j -= 1
+    arr[lo], arr[j] = arr[j], arr[lo]
+    return j`,
+    },
+  },
+  {
     key: 'radix',
-    category: 'Non-comparison',
+    category: 'Non-Comparison',
     name: 'Radix Sort',
-    tooltip: 'O(d × n) — sorts digit by digit',
+    tooltip: 'O(d × (n + k)) — integer key sort; runs stable counting sort by digit',
     gen: radix,
     docs: {
       description:
@@ -1407,7 +1878,7 @@ def merge_runs(arr: list[int], base1: int, len1: int, base2: int, len2: int) -> 
         'Advance to the next more significant digit.',
         'Repeat until all digit positions are processed.',
       ],
-      complexity: { best: 'O(d × n)', worst: 'O(d × n)', average: 'O(d × n)', space: 'O(n + k)' },
+      complexity: { best: 'O(d × (n + k))', worst: 'O(d × (n + k))', average: 'O(d × (n + k))', space: 'O(n + k)' },
       code: `def radix_sort(arr: list[int]) -> list[int]:
     """Sort non-negative integers using LSD radix sort."""
     if not arr:
@@ -1438,9 +1909,9 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'counting',
-    category: 'Non-comparison',
+    category: 'Non-Comparison',
     name: 'Counting Sort',
-    tooltip: 'O(n + k) — counts occurrences of each value',
+    tooltip: 'O(n + k) — small integer range sort; counts values then writes prefix positions',
     gen: counting,
     docs: {
       description:
@@ -1473,7 +1944,7 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'bead',
-    category: 'Non-comparison',
+    category: 'Non-Comparison',
     name: 'Bead Sort',
     tooltip: 'O(n × m) — simulates beads falling under gravity',
     gen: bead,
@@ -1512,9 +1983,9 @@ def counting_sort_by_digit(arr: list[int], exp: int) -> None:
   },
   {
     key: 'bucket',
-    category: 'Non-comparison',
+    category: 'Non-Comparison',
     name: 'Bucket Sort',
-    tooltip: 'O(n + k) average — distributes values into buckets',
+    tooltip: 'O(n + k) average — distribution sort; buckets values then insertion-sorts buckets',
     gen: bucket,
     docs: {
       description:
@@ -1560,9 +2031,9 @@ def insertion_sort(arr: list[int]) -> None:
   },
   {
     key: 'gnome',
-    category: 'For fun',
+    category: 'Simple',
     name: 'Gnome Sort',
-    tooltip: 'O(n²) — insertion sort expressed as a wandering swap walk',
+    tooltip: 'O(n²) avg/worst — tiny insertion variant; swaps backward until ordered',
     gen: gnome,
     docs: {
       description:
@@ -1590,9 +2061,9 @@ def insertion_sort(arr: list[int]) -> None:
   },
   {
     key: 'odd-even',
-    category: 'Optimized Variants',
+    category: 'Simple',
     name: 'Odd-Even Sort',
-    tooltip: 'O(n²) — bubble sort split into odd/even phases',
+    tooltip: 'O(n²) avg/worst — parallel-friendly bubble variant; alternates odd and even pairs',
     gen: oddEven,
     docs: {
       description:
@@ -1623,9 +2094,9 @@ def insertion_sort(arr: list[int]) -> None:
   },
   {
     key: 'cycle',
-    category: 'Miscellaneous',
+    category: 'Special-Purpose',
     name: 'Cycle Sort',
-    tooltip: 'O(n²) average — minimizes array writes by rotating cycles',
+    tooltip: 'O(n²) — write-minimizing sort; rotates each item into its final cycle position',
     gen: cycle,
     docs: {
       description:
@@ -1671,9 +2142,9 @@ def insertion_sort(arr: list[int]) -> None:
   },
   {
     key: 'bitonic',
-    category: 'Miscellaneous',
+    category: 'Special-Purpose',
     name: 'Bitonic Sort',
-    tooltip: 'O(n log²n) — sorting network built from bitonic merges',
+    tooltip: 'O(n log²n) — parallel sorting network; recursively builds and merges bitonic runs',
     gen: bitonic,
     docs: {
       description:
@@ -1724,9 +2195,9 @@ def next_power_of_two(n: int) -> int:
   },
   {
     key: 'bogo',
-    category: 'For fun',
+    category: 'For Fun',
     name: 'Bogo Sort',
-    tooltip: 'O(n × n!) — shuffles until sorted (joke algorithm)',
+    tooltip: 'O(n × n!) avg — joke algorithm; shuffles randomly until the array is sorted',
     gen: bogo,
     docs: {
       description:
@@ -1756,4 +2227,32 @@ def is_sorted(arr: list[int]) -> bool:
   },
 ];
 
+const ALGORITHM_ORDER = [
+  'bubble',
+  'insertion',
+  'selection',
+  'cocktail',
+  'gnome',
+  'odd-even',
+  'merge',
+  'quick',
+  'heap',
+  'shell',
+  'comb',
+  'tim',
+  'powersort',
+  'introsort',
+  'dual-pivot',
+  'pdqsort',
+  'counting',
+  'radix',
+  'bucket',
+  'bitonic',
+  'cycle',
+  'bogo',
+];
+
+const registryByKey = Object.fromEntries(algorithmRegistry.map((a) => [a.key, a]));
+
+export const algorithms = ALGORITHM_ORDER.map((key) => registryByKey[key]);
 export const algorithmsByKey = Object.fromEntries(algorithms.map((a) => [a.key, a]));

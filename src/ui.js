@@ -4,7 +4,40 @@
 
 import { algorithms } from './algorithms.js';
 
-const MAIN_ALGORITHMS = new Set(['bubble', 'insertion', 'selection', 'merge', 'quick', 'heap']);
+const DEFAULT_ALGORITHM_KEYS = ['bubble', 'insertion', 'selection', 'merge', 'quick', 'heap'];
+const EXPANDED_ALGORITHM_KEYS = [
+  'bubble',
+  'insertion',
+  'selection',
+  'cocktail',
+  'gnome',
+  'odd-even',
+  'merge',
+  'quick',
+  'heap',
+  'shell',
+  'comb',
+  'tim',
+  'powersort',
+  'introsort',
+  'dual-pivot',
+  'pdqsort',
+  'counting',
+  'radix',
+  'bucket',
+  'bitonic',
+  'cycle',
+  'bogo',
+];
+
+const DEFAULT_CATEGORIES = new Map([
+  ['bubble', 'Simple'],
+  ['insertion', 'Simple'],
+  ['selection', 'Simple'],
+  ['merge', 'Efficient'],
+  ['quick', 'Efficient'],
+  ['heap', 'Efficient'],
+]);
 let tooltipsReady = false;
 
 const PY_KEYWORDS = new Set([
@@ -86,12 +119,13 @@ function setupFloatingTooltips() {
 
 // --- toolbar -----------------------------------------------------------------
 
-// Preserve registry order while collecting each category's algorithms.
-function groupByCategory(list) {
+// Preserve incoming order while collecting each category's algorithms.
+function groupByCategory(list, categoryFor = (algo) => algo.category) {
   const groups = new Map();
   for (const algo of list) {
-    if (!groups.has(algo.category)) groups.set(algo.category, []);
-    groups.get(algo.category).push(algo);
+    const category = categoryFor(algo);
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(algo);
   }
   return [...groups];
 }
@@ -102,9 +136,8 @@ function flattenGroups(groups) {
 
 export function buildAlgorithmButtons(container, onSelect) {
   setupFloatingTooltips();
-  container.innerHTML = '';
-  const mainAlgorithms = algorithms.filter((algo) => MAIN_ALGORITHMS.has(algo.key));
-  const moreAlgorithms = algorithms.filter((algo) => !MAIN_ALGORITHMS.has(algo.key));
+  const byKey = new Map(algorithms.map((algo) => [algo.key, algo]));
+  let expanded = false;
 
   const makeAlgorithmButton = (algo) => {
     const button = document.createElement('button');
@@ -116,8 +149,8 @@ export function buildAlgorithmButtons(container, onSelect) {
     return button;
   };
 
-  const appendGroups = (parent, list) => {
-    for (const [category, items] of groupByCategory(list)) {
+  const appendGroups = (parent, list, categoryFor) => {
+    for (const [category, items] of groupByCategory(list, categoryFor)) {
       const group = document.createElement('div');
       group.className = 'algo-group';
 
@@ -136,33 +169,39 @@ export function buildAlgorithmButtons(container, onSelect) {
     }
   };
 
-  appendGroups(container, mainAlgorithms);
+  const render = () => {
+    const activeKey = container.querySelector('.algo-button.active')?.dataset.algorithm;
+    container.innerHTML = '';
+    const keys = expanded ? EXPANDED_ALGORITHM_KEYS : DEFAULT_ALGORITHM_KEYS;
+    const visibleAlgorithms = keys.map((key) => byKey.get(key)).filter(Boolean);
+    appendGroups(
+      container,
+      visibleAlgorithms,
+      expanded ? undefined : (algo) => DEFAULT_CATEGORIES.get(algo.key) ?? algo.category
+    );
 
-  const toggle = document.createElement('button');
-  toggle.className = 'more-toggle tooltip';
-  toggle.type = 'button';
-  toggle.setAttribute('aria-expanded', 'false');
-  toggle.setAttribute('aria-controls', 'more-algorithms-panel');
-  toggle.setAttribute('aria-label', 'Show more algorithms');
-  toggle.dataset.tooltip = 'Show more algorithms';
-  toggle.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i>';
-  container.appendChild(toggle);
+    if (activeKey) {
+      container
+        .querySelector(`.algo-button[data-algorithm="${activeKey}"]`)
+        ?.classList.add('active');
+    }
 
-  const moreContent = document.createElement('div');
-  moreContent.className = 'more-algorithms-content';
-  moreContent.id = 'more-algorithms-panel';
-  appendGroups(moreContent, moreAlgorithms);
-  container.appendChild(moreContent);
+    const toggle = document.createElement('button');
+    toggle.className = 'more-toggle tooltip';
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', String(expanded));
+    toggle.setAttribute('aria-label', expanded ? 'Show fewer algorithms' : 'Show more algorithms');
+    toggle.dataset.tooltip = expanded ? 'Show fewer algorithms' : 'Show more algorithms';
+    toggle.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i>';
+    toggle.classList.toggle('active', !!activeKey && !keys.includes(activeKey));
+    toggle.addEventListener('click', () => {
+      expanded = !expanded;
+      render();
+    });
+    container.appendChild(toggle);
+  };
 
-  toggle.addEventListener('click', () => {
-    const open = !moreContent.classList.contains('open');
-    moreContent.classList.toggle('open', open);
-    toggle.setAttribute('aria-expanded', String(open));
-    toggle.setAttribute('aria-label', open ? 'Hide more algorithms' : 'Show more algorithms');
-    toggle.dataset.tooltip = open ? 'Hide more algorithms' : 'Show more algorithms';
-    const hasHiddenActive = !!moreContent.querySelector('.algo-button.active');
-    toggle.classList.toggle('active', !open && hasHiddenActive);
-  });
+  render();
 }
 
 // --- docs modal --------------------------------------------------------------
