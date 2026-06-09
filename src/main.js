@@ -5,9 +5,12 @@ import { algorithmsByKey } from './algorithms.js';
 import { createEngine } from './engine.js';
 import { createRenderer } from './renderer.js';
 import {
+  distributionGroups,
+  duplicateGroups,
   generateArray,
-  distributionLabels,
   bestCaseArray,
+  presetForAlgorithmCase,
+  rangeGroups,
   worstCaseArray,
   randomCaseArray,
 } from './arrays.js';
@@ -30,9 +33,9 @@ const dom = {
   container: $('array-container'),
   algoButtons: $('algo-buttons'),
   sizeInput: $('size-input'),
-  sizeUpdate: $('size-update'),
+  range: $('range'),
+  duplicates: $('duplicates'),
   distribution: $('distribution'),
-  newArray: $('new-array'),
   moreInfo: $('more-info'),
   stepBackLarge: $('step-back-large'),
   stepBack: $('step-back'),
@@ -63,6 +66,8 @@ const renderer = createRenderer({
 
 const state = {
   size: DEFAULT_SIZE,
+  range: 'length',
+  duplicates: 'none',
   distribution: 'random',
   algorithm: null,
   baseArray: [],
@@ -124,7 +129,7 @@ function renderFrame() {
   const progress = engine.total === 0 ? 0 : Math.round((engine.cursor / engine.total) * 100);
   dom.progress.textContent = hideProgress ? '' : `${progress}%`;
   if (engine.total === 0) {
-    dom.status.textContent = 'Pick an algorithm';
+    dom.status.textContent = 'Select an algorithm to visualize.';
   } else if (engine.done) {
     dom.status.textContent = engine.truncated ? `Stopped at cap (${engine.cap.toLocaleString()} steps)` : 'Sorted';
   } else if (engine.truncated) {
@@ -141,6 +146,7 @@ function setPlayIcon(playing) {
 }
 
 let pickAlgorithmPromptTimer = null;
+let capWarningTimer = null;
 
 function clearPickAlgorithmPrompt() {
   clearTimeout(pickAlgorithmPromptTimer);
@@ -156,8 +162,18 @@ function promptPickAlgorithm() {
   pickAlgorithmPromptTimer = setTimeout(() => {
     dom.status.classList.remove('needs-algorithm');
     dom.algoButtons.classList.remove('needs-selection');
-    if (engine.total === 0) dom.status.textContent = 'Pick an algorithm';
+    if (engine.total === 0) dom.status.textContent = 'Select an algorithm to visualize.';
   }, 2500);
+}
+
+function flashCapWarning() {
+  clearTimeout(capWarningTimer);
+  dom.status.classList.remove('needs-cap-warning');
+  void dom.status.offsetWidth;
+  dom.status.classList.add('needs-cap-warning');
+  capWarningTimer = setTimeout(() => {
+    dom.status.classList.remove('needs-cap-warning');
+  }, 1300);
 }
 
 // --- driver ------------------------------------------------------------------
@@ -224,12 +240,13 @@ function stepMany(forward, count = 1) {
 
 function regenerate() {
   pause();
-  state.baseArray = generateArray(state.size, state.distribution);
+  state.baseArray = generateArray(state.size, state.range, state.duplicates, state.distribution);
   state.elapsedMs = 0;
   renderer.setArray(state.baseArray);
   if (state.algorithm) {
     engine.record(algorithmsByKey[state.algorithm].gen, state.baseArray, capForAlgorithm(state.algorithm));
     renderFrame();
+    if (engine.truncated) flashCapWarning();
   } else {
     setActiveButton(null);
     engine.record(() => [].values(), state.baseArray); // empty recording
@@ -237,7 +254,7 @@ function regenerate() {
     renderer.setStats(engine.stats, 0, false);
     dom.progress.hidden = false;
     dom.progress.textContent = '0%';
-    dom.status.textContent = 'Pick an algorithm';
+    dom.status.textContent = 'Select an algorithm to visualize.';
   }
 }
 
@@ -251,25 +268,22 @@ function runAlgorithm(key, array = state.baseArray) {
   engine.record(algorithmsByKey[key].gen, array, capForAlgorithm(key));
   renderer.setArray(array);
   renderFrame();
+  if (engine.truncated) flashCapWarning();
 }
 
 function runPreset(key, caseType) {
   const size = DEFAULT_SIZE;
   const makers = { best: bestCaseArray, worst: worstCaseArray, random: randomCaseArray };
   const array = (makers[caseType] ?? randomCaseArray)(key, size);
-  const presetDistribution = (() => {
-    if (caseType === 'random') return 'random';
-    if (caseType === 'best') return key === 'quick' ? 'balancedPivot' : 'sorted';
-    if (key === 'quick') return 'sorted';
-    if (key === 'comb' || key === 'shell') return 'highDisorder';
-    if (key === 'tim') return 'fragmentedRuns';
-    if (key === 'bogo') return 'random';
-    return 'reversed';
-  })();
+  const preset = presetForAlgorithmCase(key, caseType);
   state.size = array.length;
-  state.distribution = presetDistribution;
+  state.range = preset.range;
+  state.duplicates = preset.duplicates;
+  state.distribution = preset.distribution;
   dom.sizeInput.value = array.length;
-  dom.distribution.value = presetDistribution;
+  dom.range.value = preset.range;
+  dom.duplicates.value = preset.duplicates;
+  dom.distribution.value = preset.distribution;
   dom.speed.value = DEFAULT_SPEED;
   closeModal();
   setTimeout(() => {
@@ -278,15 +292,18 @@ function runPreset(key, caseType) {
   }, 250);
 }
 
-// --- size / distribution -----------------------------------------------------
+// --- array controls ----------------------------------------------------------
 
-function updateSize() {
+function generateFromControls() {
   const value = parseInt(dom.sizeInput.value, 10);
   if (Number.isNaN(value) || value < MIN_SIZE || value > MAX_SIZE) {
     dom.sizeInput.value = state.size;
     return;
   }
   state.size = value;
+  state.range = dom.range.value;
+  state.duplicates = dom.duplicates.value;
+  state.distribution = dom.distribution.value;
   regenerate();
 }
 
@@ -306,18 +323,16 @@ function closeModal() {
 // --- events ------------------------------------------------------------------
 
 function bindEvents() {
-  dom.sizeUpdate.addEventListener('click', updateSize);
   dom.sizeInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      updateSize();
+      generateFromControls();
     }
   });
-  dom.distribution.addEventListener('change', () => {
-    state.distribution = dom.distribution.value;
-    regenerate();
-  });
-  dom.newArray.addEventListener('click', regenerate);
+  dom.sizeInput.addEventListener('change', generateFromControls);
+  dom.range.addEventListener('change', generateFromControls);
+  dom.duplicates.addEventListener('change', generateFromControls);
+  dom.distribution.addEventListener('change', generateFromControls);
   dom.moreInfo.addEventListener('click', openModal);
 
   dom.playPause.addEventListener('click', togglePlay);
@@ -363,7 +378,9 @@ function bindEvents() {
 
 function init() {
   buildAlgorithmButtons(dom.algoButtons, (key) => runAlgorithm(key));
-  buildDistributionOptions(dom.distribution, distributionLabels);
+  buildDistributionOptions(dom.range, rangeGroups);
+  buildDistributionOptions(dom.duplicates, duplicateGroups);
+  buildDistributionOptions(dom.distribution, distributionGroups);
   buildModal(
     { sidebar: dom.modalSidebar, content: dom.modalContent },
     runPreset

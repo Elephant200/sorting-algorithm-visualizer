@@ -3,6 +3,11 @@
 // Python syntax highlighter for the code blocks.
 
 import { algorithms } from './algorithms.js';
+import {
+  noSpecialWorstCaseAlgorithms,
+  quicksortFirstAlgorithms,
+  valueSensitiveAlgorithms,
+} from './arrays.js';
 
 const DEFAULT_ALGORITHM_KEYS = ['bubble', 'insertion', 'selection', 'merge', 'quick', 'heap'];
 const EXPANDED_ALGORITHM_KEYS = [
@@ -215,15 +220,50 @@ function complexitiesMatch(algo) {
   return best === average && average === worst;
 }
 
+function hasSpecificBestCase(algo) {
+  return quicksortFirstAlgorithms.has(algo.key);
+}
+
+function hasNoSpecificWorstCase(algo) {
+  return noSpecialWorstCaseAlgorithms.has(algo.key);
+}
+
+function hasValueSensitiveCase(algo) {
+  return valueSensitiveAlgorithms.has(algo.key);
+}
+
 function runnableCase(algo, caseType) {
+  if (caseType === 'best' && hasSpecificBestCase(algo)) return 'best';
+  if ((caseType === 'best' || caseType === 'worst') && hasValueSensitiveCase(algo)) return caseType;
+  if (caseType === 'worst' && hasNoSpecificWorstCase(algo)) return 'random';
   return complexitiesMatch(algo) ? 'random' : caseType;
 }
 
 function caseIsDisabled(algo, caseType) {
+  if (caseType === 'best' && hasSpecificBestCase(algo)) return false;
+  if ((caseType === 'best' || caseType === 'worst') && hasValueSensitiveCase(algo)) return false;
+  if (caseType === 'worst' && hasNoSpecificWorstCase(algo)) return true;
   return complexitiesMatch(algo) && caseType !== 'random';
 }
 
 function caseShape(algo, caseType) {
+  if (caseType === 'best' && hasSpecificBestCase(algo)) {
+    return 'Balanced pivot setup for quicksort-family algorithms: pivot choices split the range more evenly.';
+  }
+  if (caseType === 'worst' && hasNoSpecificWorstCase(algo)) {
+    return 'No dedicated adversarial preset is provided for this adaptive merge-sort family; use random or partially sorted runs for practical comparisons.';
+  }
+  if (hasValueSensitiveCase(algo)) {
+    if (caseType === 'best') {
+      if (algo.key === 'bucket') return 'Evenly spread values with random order so buckets stay relatively balanced.';
+      return 'Small value range with many duplicates, keeping the value-dependent part of the work low.';
+    }
+    if (caseType === 'worst') {
+      if (algo.key === 'bead') return 'Large bead heights from the 1-5,000 value range; larger ranges are intentionally avoided for responsiveness.';
+      if (algo.key === 'bucket') return 'Duplicate-heavy values in reverse order, which tends to crowd buckets and stress per-bucket insertion work.';
+      return 'Very wide values from 1-500,000, making the value-range or digit-count component dominate.';
+    }
+  }
   if (complexitiesMatch(algo)) {
     if (caseType === 'best' || caseType === 'worst') {
       return 'No distinct best or worst case: this algorithm has the same time complexity for every input shape.';
@@ -232,13 +272,11 @@ function caseShape(algo, caseType) {
   }
   if (caseType === 'random') return 'Randomly shuffled array.';
   if (caseType === 'best') {
-    if (algo.key === 'quick') return 'Balanced pivot setup: the median value is placed at the final pivot position.';
     return 'Already sorted ascending array.';
   }
   if (caseType === 'worst') {
     if (algo.key === 'quick') return 'Already sorted ascending array, which is poor for this last-element pivot quicksort.';
     if (algo.key === 'comb' || algo.key === 'shell') return 'Deterministic high-disorder shuffle selected to exercise this gap sequence heavily.';
-    if (algo.key === 'tim') return 'Fragmented alternating high/low runs that prevent a single natural run.';
     if (algo.key === 'bogo') return 'Random array; bad luck can keep shuffling until the recording cap.';
     return 'Reverse-sorted descending array.';
   }
@@ -424,7 +462,18 @@ export function buildModal({ sidebar, content }, onRunPreset) {
 }
 
 export function buildDistributionOptions(select, labels) {
-  select.innerHTML = Object.entries(labels)
-    .map(([value, label]) => `<option value="${value}">${label}</option>`)
+  const groups = Array.isArray(labels)
+    ? labels
+    : [{ label: null, options: Object.entries(labels) }];
+
+  select.innerHTML = groups
+    .map((group) => {
+      const options = group.options
+        .map(([value, label]) => `<option value="${escapeAttr(value)}">${escapeHtml(label)}</option>`)
+        .join('');
+      return group.label
+        ? `<optgroup label="${escapeAttr(group.label)}">${options}</optgroup>`
+        : options;
+    })
     .join('');
 }

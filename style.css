@@ -85,6 +85,23 @@ h1 {
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 0.86rem;
+  min-height: 1.3em;
+}
+
+.subtitle.needs-algorithm {
+  color: var(--sand-bright);
+  font-weight: 600;
+}
+
+.subtitle.needs-cap-warning {
+  color: var(--amber);
+  font-weight: 700;
+  animation: subtitle-warning-pulse 0.55s ease-in-out 2;
+}
+
+@keyframes subtitle-warning-pulse {
+  0%, 100% { text-shadow: none; }
+  50% { text-shadow: 0 0 18px rgba(230, 179, 77, 0.7); }
 }
 
 /* ---------- generic control panels ---------- */
@@ -109,7 +126,28 @@ h1 {
 }
 
 .settings-row {
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.array-settings,
+.utility-settings {
+  display: flex;
+  align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.array-settings {
+  flex: 1 1 680px;
+}
+
+.utility-settings {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  padding-left: 14px;
+  border-left: 1px solid var(--border-soft);
 }
 
 .control-group {
@@ -343,6 +381,11 @@ button:disabled {
   gap: 12px;
   flex-wrap: wrap;
   min-height: 58px;
+  margin-top: 12px;
+}
+
+.playback-speed {
+  padding-right: 4px;
 }
 
 .transport {
@@ -396,7 +439,6 @@ button:disabled {
 
 .slider-group { gap: 9px; }
 
-.status,
 .progress {
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -407,17 +449,6 @@ button:disabled {
   width: 48px;
   color: var(--sand-bright);
   text-align: right;
-}
-
-.status {
-  width: 210px;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.status.needs-algorithm {
-  color: var(--sand-bright);
-  font-weight: 600;
 }
 
 .algo-toolbar.needs-selection {
@@ -980,6 +1011,17 @@ button:disabled {
 @media (max-width: 980px) {
   .settings-row,
   .playback-controls { justify-content: center; flex-wrap: wrap; }
+  .array-settings,
+  .utility-settings {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  .utility-settings {
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: none;
+    border-top: 1px solid var(--border-soft);
+  }
   .inline-stats { flex-wrap: wrap; justify-content: center; }
   .modal-container { flex-direction: column; height: 90vh; }
   .modal-sidebar {
@@ -1011,8 +1053,9 @@ button:disabled {
   h1 { font-size: 1.45rem; }
   .subtitle { font-size: 0.82rem; }
   .settings-row { justify-content: flex-start; }
+  .array-settings,
+  .utility-settings { justify-content: flex-start; }
   .playback-controls { justify-content: flex-start; }
-  .status { width: 100%; text-align: left; }
   .inline-stats { justify-content: flex-start; }
   .stat-row { width: calc(50% - 4px); }
   .legend { gap: 10px 16px; }
