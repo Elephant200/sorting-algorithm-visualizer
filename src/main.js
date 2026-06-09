@@ -22,6 +22,7 @@ const MAX_SIZE = 1000;
 const DEFAULT_SIZE = 100;
 const DEFAULT_SPEED = 55;
 const LARGE_STEP = 50;
+const BOGO_CAP = 50000;
 
 const $ = (id) => document.getElementById(id);
 
@@ -96,6 +97,7 @@ function currentTimeSec() {
 // --- rendering ---------------------------------------------------------------
 
 const isBogo = () => state.algorithm === 'bogo';
+const capForAlgorithm = (key) => (key === 'bogo' ? BOGO_CAP : undefined);
 
 function setActiveButton(key) {
   dom.algoButtons.querySelectorAll('.algo-button').forEach((btn) => {
@@ -122,12 +124,16 @@ function setActiveButton(key) {
 function renderFrame() {
   renderer.frame(engine.array, engine.sorted, engine.currentOp());
   renderer.setStats(engine.stats, currentTimeSec(), isBogo());
+  const hideProgress = isBogo() || engine.truncated;
+  dom.progress.hidden = hideProgress;
   const progress = engine.total === 0 ? 0 : Math.round((engine.cursor / engine.total) * 100);
-  dom.progress.textContent = `${progress}%`;
+  dom.progress.textContent = hideProgress ? '' : `${progress}%`;
   if (engine.total === 0) {
     dom.status.textContent = 'Pick an algorithm';
   } else if (engine.done) {
     dom.status.textContent = engine.truncated ? `Stopped at cap (${engine.cap.toLocaleString()} steps)` : 'Sorted';
+  } else if (engine.truncated) {
+    dom.status.textContent = `Capped at ${engine.cap.toLocaleString()} steps`;
   } else {
     dom.status.textContent = state.playing ? 'Sorting...' : 'Paused';
   }
@@ -227,13 +233,14 @@ function regenerate() {
   state.elapsedMs = 0;
   renderer.setArray(state.baseArray);
   if (state.algorithm) {
-    engine.record(algorithmsByKey[state.algorithm].gen, state.baseArray);
+    engine.record(algorithmsByKey[state.algorithm].gen, state.baseArray, capForAlgorithm(state.algorithm));
     renderFrame();
   } else {
     setActiveButton(null);
     engine.record(() => [].values(), state.baseArray); // empty recording
     renderer.clearHighlights(state.baseArray, engine.sorted);
     renderer.setStats(engine.stats, 0, false);
+    dom.progress.hidden = false;
     dom.progress.textContent = '0%';
     dom.status.textContent = 'Pick an algorithm';
   }
@@ -246,7 +253,7 @@ function runAlgorithm(key, array = state.baseArray) {
   state.baseArray = array;
   state.elapsedMs = 0;
   setActiveButton(key);
-  engine.record(algorithmsByKey[key].gen, array);
+  engine.record(algorithmsByKey[key].gen, array, capForAlgorithm(key));
   renderer.setArray(array);
   renderFrame();
 }

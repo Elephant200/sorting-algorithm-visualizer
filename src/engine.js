@@ -15,15 +15,17 @@ export function createEngine() {
   let shuffles = 0;
   let sorted = new Set(); // indices finalized via markSorted
   let truncated = false;
+  let activeCap = DEFAULT_CAP;
 
   // Run `gen(workingCopy)` to completion, capturing every op.
-  function record(genFactory, inputArray, cap = DEFAULT_CAP) {
+  function record(genFactory, inputArray, operationCap = DEFAULT_CAP) {
     const work = inputArray.slice();
     ops = [];
     truncated = false;
+    activeCap = operationCap;
     for (const op of genFactory(work)) {
       ops.push(op);
-      if (ops.length >= cap) {
+      if (ops.length >= operationCap) {
         truncated = true;
         break;
       }
@@ -144,7 +146,7 @@ export function createEngine() {
       return truncated;
     },
     get cap() {
-      return DEFAULT_CAP;
+      return activeCap;
     },
     get stats() {
       return { comparisons, writes, shuffles };
