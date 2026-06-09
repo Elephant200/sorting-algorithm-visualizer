@@ -649,13 +649,25 @@ button:disabled {
 .close-button {
   width: 38px;
   height: 38px;
+  min-width: 38px;
   border-radius: 50%;
   background: var(--bg-2);
   color: var(--text-dim);
-  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  font-size: 15px;
   line-height: 1;
-  display: grid;
-  place-items: center;
+  flex: 0 0 38px;
+}
+
+.close-button i {
+  display: block;
+  line-height: 1;
+  width: 1em;
+  height: 1em;
+  text-align: center;
 }
 
 .close-button:hover { background: var(--red); color: #fff; }
