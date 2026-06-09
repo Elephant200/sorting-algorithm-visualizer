@@ -28,6 +28,7 @@
   --green: #7bb98c;
   --amber: #e6b34d;
   --red: #d27a63;
+  --violet: #a98ad6;
 
   /* effects */
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
@@ -487,6 +488,7 @@ button:disabled {
 
 .swatch.comparing { background: var(--amber); }
 .swatch.swapping { background: var(--red); }
+.swatch.writing { background: var(--violet); }
 .swatch.pivot { background: var(--teal); }
 .swatch.sorted { background: var(--green); }
 
@@ -507,28 +509,68 @@ button:disabled {
   overflow: hidden;
 }
 
+/* Each bar's hue comes from its value via --bar-color (set inline by the
+   renderer); a fixed translucent overlay supplies the vertical shading so the
+   underlying background-color can animate. Highlights snap on instantly
+   (duration 0) and fade back out through the base transition. */
 .bar {
   flex: 0 0 auto;
-  background: linear-gradient(180deg, var(--sand-bright), var(--sand) 55%, var(--sand-deep));
+  --bar-color: var(--sand);
+  background-color: var(--bar-color);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.2));
   border-radius: 2px 2px 0 0;
-  transition: background 0.12s ease;
+  transition: background-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.bar.comparing,
+.bar.swapping,
+.bar.writing,
+.bar.pivot,
+.bar.sorted {
+  transition: none;
+}
+
+/* Smooth mode: tween heights while stepping or at one-op-per-frame speeds. */
+#array-container.smooth .bar {
+  transition: background-color 0.35s ease, box-shadow 0.35s ease, height 0.1s ease;
+}
+
+#array-container.smooth .bar.comparing,
+#array-container.smooth .bar.swapping,
+#array-container.smooth .bar.writing,
+#array-container.smooth .bar.pivot,
+#array-container.smooth .bar.sorted {
+  transition: height 0.1s ease;
 }
 
 .bar.comparing {
-  background: linear-gradient(180deg, #f3d27e, var(--amber));
+  background-color: var(--amber);
+  box-shadow: 0 0 10px rgba(230, 179, 77, 0.5);
 }
 
 .bar.swapping {
-  background: linear-gradient(180deg, #e89c84, var(--red));
+  background-color: var(--red);
+  box-shadow: 0 0 14px rgba(210, 122, 99, 0.65);
+}
+
+.bar.writing {
+  background-color: var(--violet);
+  box-shadow: 0 0 14px rgba(169, 138, 214, 0.6);
 }
 
 .bar.pivot {
-  background: linear-gradient(180deg, #8fe0d2, var(--teal));
-  box-shadow: 0 0 10px rgba(91, 184, 168, 0.5);
+  background-color: var(--teal);
+  box-shadow: 0 0 12px rgba(91, 184, 168, 0.55);
 }
 
 .bar.sorted {
-  background: linear-gradient(180deg, #9bd4a9, var(--green));
+  background-color: var(--green);
+  animation: bar-settle 0.4s ease;
+}
+
+@keyframes bar-settle {
+  from { filter: brightness(1.65); }
+  to { filter: brightness(1); }
 }
 
 /* ---------- inline stats ---------- */

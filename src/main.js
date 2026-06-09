@@ -122,7 +122,10 @@ function setActiveButton(key) {
 }
 
 function renderFrame() {
-  renderer.frame(engine.array, engine.sorted, engine.currentOp());
+  // Smooth bar-height tweens while stepping/paused or at one-op-per-frame
+  // speeds; snap heights when frames batch many ops.
+  renderer.setSmooth(!state.playing || opsPerTick() === 1);
+  renderer.frame(engine.array, engine.sorted, engine.pivots, engine.currentOp());
   renderer.setStats(engine.stats, currentTimeSec(), isBogo());
   const hideProgress = isBogo() || engine.truncated;
   dom.progress.hidden = hideProgress;

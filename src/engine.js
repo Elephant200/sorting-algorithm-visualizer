@@ -14,16 +14,26 @@ export function createEngine() {
   let writes = 0;
   let shuffles = 0;
   let sorted = new Set(); // indices finalized via markSorted
+  let pivots = new Set(); // active pivot indices (persist until clearPivots)
   let truncated = false;
   let activeCap = DEFAULT_CAP;
 
-  // Run `gen(workingCopy)` to completion, capturing every op.
+  // Run `gen(workingCopy)` to completion, capturing every op. Pivot ops are
+  // annotated with the pivot set they replace so playback stays reversible.
   function record(genFactory, inputArray, operationCap = DEFAULT_CAP) {
     const work = inputArray.slice();
     ops = [];
     truncated = false;
     activeCap = operationCap;
+    const recPivots = new Set();
     for (const op of genFactory(work)) {
+      if (op.type === 'pivot') {
+        op.prevPivots = [...recPivots];
+        recPivots.add(op.index);
+      } else if (op.type === 'clearPivots') {
+        op.prevPivots = [...recPivots];
+        recPivots.clear();
+      }
       ops.push(op);
       if (ops.length >= operationCap) {
         truncated = true;
@@ -41,6 +51,7 @@ export function createEngine() {
     writes = 0;
     shuffles = 0;
     sorted = new Set();
+    pivots = new Set();
   }
 
   function applyForward(op) {
@@ -65,7 +76,12 @@ export function createEngine() {
       case 'markSorted':
         for (const i of op.indices) sorted.add(i);
         break;
-      // pivot is purely visual — nothing to apply.
+      case 'pivot':
+        pivots.add(op.index);
+        break;
+      case 'clearPivots':
+        pivots.clear();
+        break;
     }
   }
 
@@ -90,6 +106,10 @@ export function createEngine() {
         break;
       case 'markSorted':
         for (const i of op.indices) sorted.delete(i);
+        break;
+      case 'pivot':
+      case 'clearPivots':
+        pivots = new Set(op.prevPivots);
         break;
     }
   }
@@ -132,6 +152,9 @@ export function createEngine() {
     },
     get sorted() {
       return sorted;
+    },
+    get pivots() {
+      return pivots;
     },
     get cursor() {
       return cursor;

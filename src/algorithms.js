@@ -11,12 +11,18 @@
 //   { type: 'overwrite',  index, value, prev }         write `value` into a[index]
 //   { type: 'setArray',   value: [...], prev: [...] }  replace the whole array
 //   { type: 'pivot',      index }                       mark a pivot (visual only)
+//   { type: 'clearPivots' }                              drop all pivot marks
 //   { type: 'markSorted', indices: [...] }              finalize elements (green)
+//
+// Pivot marks persist on screen until a clearPivots op, so partitions should
+// end by yielding clearPivots(). The engine annotates both ops with the prior
+// pivot set during recording to keep playback reversible.
 
 // --- op helpers --------------------------------------------------------------
 
 const compare = (i, j) => ({ type: 'compare', indices: [i, j] });
 const pivot = (i) => ({ type: 'pivot', index: i });
+const clearPivots = () => ({ type: 'clearPivots' });
 const markSorted = (...indices) => ({ type: 'markSorted', indices });
 
 function* swap(a, i, j) {
@@ -233,6 +239,7 @@ function* partition(a, lo, hi) {
     }
   }
   if (i + 1 !== hi) yield* swap(a, i + 1, hi);
+  yield clearPivots();
   return i + 1;
 }
 
@@ -361,6 +368,7 @@ function* dualPivotPartition(a, lo, hi) {
   gt++;
   if (lo !== lt) yield* swap(a, lo, lt);
   if (hi !== gt) yield* swap(a, hi, gt);
+  yield clearPivots();
   return [lt, gt];
 }
 
@@ -420,6 +428,7 @@ function* pdqPartition(a, lo, hi) {
   }
 
   if (lo !== j) yield* swap(a, lo, j);
+  yield clearPivots();
   return { pivot: j, alreadyPartitioned };
 }
 
