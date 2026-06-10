@@ -139,18 +139,61 @@ function flattenGroups(groups) {
   return groups.flatMap(([, items]) => items);
 }
 
-export function buildAlgorithmButtons(container, onSelect) {
+const EXPANDED_STORAGE_KEY = 'sav:algos-expanded';
+
+function readExpandedPreference() {
+  try {
+    return localStorage.getItem(EXPANDED_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveExpandedPreference(expanded) {
+  try {
+    localStorage.setItem(EXPANDED_STORAGE_KEY, expanded ? '1' : '0');
+  } catch {
+    /* storage unavailable — preference just won't persist */
+  }
+}
+
+export function buildAlgorithmButtons(container, onSelect, onInfo) {
   setupFloatingTooltips();
   const byKey = new Map(algorithms.map((algo) => [algo.key, algo]));
-  let expanded = false;
+  let expanded = readExpandedPreference();
 
   const makeAlgorithmButton = (algo) => {
     const button = document.createElement('button');
     button.className = 'algo-button tooltip';
-    button.textContent = algo.name.replace(/ Sort$/, '');
     button.dataset.tooltip = algo.tooltip;
     button.dataset.algorithm = algo.key;
     button.addEventListener('click', () => onSelect(algo.key));
+
+    const label = document.createElement('span');
+    label.textContent = algo.name.replace(/ Sort$/, '');
+    button.appendChild(label);
+
+    if (onInfo) {
+      // Not a <button> (nested buttons are invalid HTML), so wire up
+      // keyboard activation by hand.
+      const info = document.createElement('span');
+      info.className = 'algo-info';
+      info.setAttribute('role', 'button');
+      info.tabIndex = 0;
+      info.setAttribute('aria-label', `Open ${algo.name} docs`);
+      info.dataset.tooltip = `About ${algo.name}`;
+      info.innerHTML = '<i class="fas fa-circle-info" aria-hidden="true"></i>';
+      const activate = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onInfo(algo.key);
+      };
+      info.addEventListener('click', activate);
+      info.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') activate(e);
+      });
+      button.appendChild(info);
+    }
     return button;
   };
 
@@ -191,16 +234,22 @@ export function buildAlgorithmButtons(container, onSelect) {
         ?.classList.add('active');
     }
 
+    const hiddenCount = EXPANDED_ALGORITHM_KEYS.length - DEFAULT_ALGORITHM_KEYS.length;
     const toggle = document.createElement('button');
     toggle.className = 'more-toggle tooltip';
     toggle.type = 'button';
     toggle.setAttribute('aria-expanded', String(expanded));
-    toggle.setAttribute('aria-label', expanded ? 'Show fewer algorithms' : 'Show more algorithms');
-    toggle.dataset.tooltip = expanded ? 'Show fewer algorithms' : 'Show more algorithms';
-    toggle.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i>';
+    toggle.setAttribute('aria-label', expanded ? 'Show fewer algorithms' : `Show ${hiddenCount} more algorithms`);
+    toggle.dataset.tooltip = expanded
+      ? 'Collapse back to the six classic algorithms'
+      : `Show ${hiddenCount} more algorithms`;
+    toggle.innerHTML = expanded
+      ? '<i class="fas fa-minus" aria-hidden="true"></i><span>Show fewer</span>'
+      : `<i class="fas fa-plus" aria-hidden="true"></i><span>${hiddenCount} more</span>`;
     toggle.classList.toggle('active', !!activeKey && !keys.includes(activeKey));
     toggle.addEventListener('click', () => {
       expanded = !expanded;
+      saveExpandedPreference(expanded);
       render();
     });
     container.appendChild(toggle);
@@ -414,9 +463,9 @@ export function buildModal({ sidebar, content }, onRunPreset) {
     });
   });
 
-  const scrollToAlgorithm = (key) => {
+  const scrollToAlgorithm = (key, behavior = 'smooth') => {
     const section = content.querySelector(`#section-${key}`);
-    section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    section?.scrollIntoView({ behavior, block: 'start' });
   };
 
   const scrollToSummary = () => {
@@ -459,6 +508,8 @@ export function buildModal({ sidebar, content }, onRunPreset) {
       if (!item.dataset.summary) item.classList.toggle('active', item.dataset.algorithm === active);
     });
   });
+
+  return { scrollToAlgorithm };
 }
 
 export function buildDistributionOptions(select, labels) {

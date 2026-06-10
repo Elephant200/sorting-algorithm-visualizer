@@ -46,6 +46,8 @@ const dom = {
   stepForward: $('step-forward'),
   stepForwardLarge: $('step-forward-large'),
   speed: $('speed'),
+  opsRate: $('ops-rate'),
+  scrub: $('scrub'),
   progress: $('progress'),
   status: $('status'),
   modalOverlay: $('modal-overlay'),
@@ -97,6 +99,17 @@ function opsPerTick() {
   return Math.max(1, Math.round(t * t * 320));
 }
 
+// The speed mapping is nonlinear (delay below the midpoint, batching above),
+// so show the effective rate to make the slider legible.
+function updateOpsRate() {
+  const perSec = opsPerTick() * (1000 / frameDelay());
+  const text =
+    perSec >= 1000
+      ? `${(perSec / 1000).toFixed(perSec >= 10000 ? 0 : 1)}k ops/s`
+      : `${Math.round(perSec)} ops/s`;
+  dom.opsRate.textContent = text;
+}
+
 // --- time --------------------------------------------------------------------
 
 function currentTimeSec() {
@@ -130,12 +143,30 @@ function setActiveButton(key) {
   moreToggle?.classList.toggle('active', !!key && !activeButton);
 }
 
+// Scrub bar caches: avoid touching the DOM when nothing changed (renderFrame
+// runs every playback tick).
+let scrubMaxCache = -1;
+let scrubValueCache = -1;
+
+function syncScrub() {
+  if (scrubMaxCache !== engine.total) {
+    dom.scrub.max = engine.total;
+    dom.scrub.disabled = engine.total === 0;
+    scrubMaxCache = engine.total;
+  }
+  if (scrubValueCache !== engine.cursor) {
+    dom.scrub.value = engine.cursor;
+    scrubValueCache = engine.cursor;
+  }
+}
+
 function renderFrame() {
   // Smooth bar-height tweens while stepping/paused or at one-op-per-frame
   // speeds; snap heights when frames batch many ops.
   renderer.setSmooth(!state.playing || opsPerTick() === 1);
   renderer.frame(engine.array, engine.sorted, engine.pivots, engine.currentOp());
   renderer.setStats(engine.stats, currentTimeSec(), isBogo());
+  syncScrub();
   const hideProgress = isBogo() || engine.truncated;
   dom.progress.hidden = hideProgress;
   const progress = engine.total === 0 ? 0 : Math.round((engine.cursor / engine.total) * 100);
@@ -304,6 +335,7 @@ function runPreset(key, caseType) {
   dom.duplicates.value = preset.duplicates;
   dom.distribution.value = preset.distribution;
   dom.speed.value = DEFAULT_SPEED;
+  updateOpsRate();
   closeModal();
   setTimeout(() => {
     runAlgorithm(key, array);
@@ -335,10 +367,18 @@ function generateFromControls() {
 
 // --- modal -------------------------------------------------------------------
 
+let docsModal = null; // { scrollToAlgorithm } from buildModal
+
 function openModal() {
   dom.modalOverlay.classList.add('active');
   document.body.style.overflow = 'hidden';
   dom.modalContent.dispatchEvent(new Event('scroll'));
+}
+
+// Deep link from an algorithm chip's info icon straight to its docs section.
+function openModalAt(key) {
+  openModal();
+  docsModal?.scrollToAlgorithm(key, 'auto');
 }
 
 function closeModal() {
@@ -368,6 +408,23 @@ function bindEvents() {
   dom.stepForwardLarge.addEventListener('click', () => stepMany(true, LARGE_STEP));
   dom.stepBackLarge.addEventListener('click', () => stepMany(false, LARGE_STEP));
 
+  dom.speed.addEventListener('input', updateOpsRate);
+
+  // Scrubbing: input events can fire far faster than frames, and a long drag
+  // can ask for seeks millions of ops apart. Coalesce to one seek + one paint
+  // per animation frame, reading the latest slider value at frame time.
+  let scrubPending = false;
+  dom.scrub.addEventListener('input', () => {
+    pause();
+    if (scrubPending) return;
+    scrubPending = true;
+    requestAnimationFrame(() => {
+      scrubPending = false;
+      engine.seek(Number(dom.scrub.value));
+      renderFrame();
+    });
+  });
+
   dom.modalClose.addEventListener('click', closeModal);
   dom.modalOverlay.addEventListener('click', (e) => {
     if (e.target === dom.modalOverlay) closeModal();
@@ -377,17 +434,28 @@ function bindEvents() {
       closeModal();
       return;
     }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (dom.modalOverlay.classList.contains('active')) return;
 
     const target = e.target;
+    // Sliders handle their own arrow keys but don't use space/enter/letters.
+    const isSlider = target instanceof HTMLInputElement && target.type === 'range';
     const isTyping =
-      target instanceof HTMLInputElement ||
+      (target instanceof HTMLInputElement && !isSlider) ||
       target instanceof HTMLSelectElement ||
       target instanceof HTMLTextAreaElement ||
       target?.isContentEditable;
     const isDisclosure = target instanceof HTMLElement && target.tagName === 'SUMMARY';
-    if ((e.key === ' ' || e.key === 'Enter') && !isTyping && !isDisclosure && !dom.modalOverlay.classList.contains('active')) {
+    if (isTyping) return;
+
+    if ((e.key === ' ' || e.key === 'Enter') && !isDisclosure) {
       e.preventDefault();
       togglePlay();
+    } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !isSlider) {
+      e.preventDefault();
+      stepMany(e.key === 'ArrowRight', e.shiftKey ? LARGE_STEP : 1);
+    } else if (e.key === 'r' || e.key === 'R') {
+      generateFromControls();
     }
   });
 
@@ -404,16 +472,17 @@ function bindEvents() {
 // --- init --------------------------------------------------------------------
 
 function init() {
-  buildAlgorithmButtons(dom.algoButtons, (key) => runAlgorithm(key));
+  buildAlgorithmButtons(dom.algoButtons, (key) => runAlgorithm(key), openModalAt);
   buildDistributionOptions(dom.range, rangeGroups);
   buildDistributionOptions(dom.duplicates, duplicateGroups);
   buildDistributionOptions(dom.distribution, distributionGroups);
-  buildModal(
+  docsModal = buildModal(
     { sidebar: dom.modalSidebar, content: dom.modalContent },
     runPreset
   );
   dom.sizeInput.value = state.size;
   dom.speed.value = DEFAULT_SPEED;
+  updateOpsRate();
   bindEvents();
   regenerate();
 }
