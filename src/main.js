@@ -20,12 +20,15 @@ import {
   buildDistributionOptions,
 } from './ui.js';
 
-const MIN_SIZE = 3;
-const MAX_SIZE = 1000;
+const MIN_SIZE = 2;
+const MAX_SIZE = 2000;
 const DEFAULT_SIZE = 100;
 const DEFAULT_SPEED = 55;
 const LARGE_STEP = 50;
 const BOGO_CAP = 50000;
+// Every bogo shuffle op snapshots the whole array twice, so bound total
+// recorded memory rather than shuffle count alone.
+const BOGO_SNAPSHOT_BUDGET = 4_000_000;
 
 const $ = (id) => document.getElementById(id);
 
@@ -50,6 +53,9 @@ const dom = {
   modalContent: $('modal-content'),
   modalClose: $('modal-close'),
   statsPanel: $('stats-panel'),
+  regenerate: $('regenerate'),
+  toast: $('toast'),
+  toastMessage: $('toast-message'),
 };
 
 const engine = createEngine();
@@ -102,7 +108,10 @@ function currentTimeSec() {
 // --- rendering ---------------------------------------------------------------
 
 const isBogo = () => state.algorithm === 'bogo';
-const capForAlgorithm = (key) => (key === 'bogo' ? BOGO_CAP : undefined);
+const capForAlgorithm = (key) =>
+  key === 'bogo'
+    ? Math.max(200, Math.min(BOGO_CAP, Math.floor(BOGO_SNAPSHOT_BUDGET / state.size)))
+    : undefined;
 
 function setActiveButton(key) {
   dom.algoButtons.querySelectorAll('.algo-button').forEach((btn) => {
@@ -148,35 +157,42 @@ function setPlayIcon(playing) {
     : '<i class="fas fa-play" aria-hidden="true"></i>';
 }
 
-let pickAlgorithmPromptTimer = null;
-let capWarningTimer = null;
+// --- warnings ------------------------------------------------------------
+// All transient warnings go through one toast so they look and behave the
+// same: amber banner, icon, auto-dismiss, latest message wins.
+
+let toastTimer = null;
+let toolbarPulseTimer = null;
+
+function showWarning(message) {
+  dom.toastMessage.textContent = message;
+  dom.toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => dom.toast.classList.remove('visible'), 3500);
+}
+
+function hideWarning() {
+  clearTimeout(toastTimer);
+  dom.toast.classList.remove('visible');
+}
 
 function clearPickAlgorithmPrompt() {
-  clearTimeout(pickAlgorithmPromptTimer);
-  dom.status.classList.remove('needs-algorithm');
+  clearTimeout(toolbarPulseTimer);
   dom.algoButtons.classList.remove('needs-selection');
+  hideWarning();
 }
 
 function promptPickAlgorithm() {
-  dom.status.textContent = 'Select an algorithm above';
-  dom.status.classList.add('needs-algorithm');
+  showWarning('Select an algorithm above to start sorting.');
   dom.algoButtons.classList.add('needs-selection');
-  clearTimeout(pickAlgorithmPromptTimer);
-  pickAlgorithmPromptTimer = setTimeout(() => {
-    dom.status.classList.remove('needs-algorithm');
-    dom.algoButtons.classList.remove('needs-selection');
-    if (engine.total === 0) dom.status.textContent = 'Select an algorithm to visualize.';
-  }, 2500);
+  clearTimeout(toolbarPulseTimer);
+  toolbarPulseTimer = setTimeout(() => dom.algoButtons.classList.remove('needs-selection'), 1300);
 }
 
-function flashCapWarning() {
-  clearTimeout(capWarningTimer);
-  dom.status.classList.remove('needs-cap-warning');
-  void dom.status.offsetWidth;
-  dom.status.classList.add('needs-cap-warning');
-  capWarningTimer = setTimeout(() => {
-    dom.status.classList.remove('needs-cap-warning');
-  }, 1300);
+function warnTruncated() {
+  showWarning(
+    `This run exceeds the ${engine.cap.toLocaleString()}-step recording cap — playback shows the first ${engine.cap.toLocaleString()} steps.`
+  );
 }
 
 // --- driver ------------------------------------------------------------------
@@ -249,7 +265,7 @@ function regenerate() {
   if (state.algorithm) {
     engine.record(algorithmsByKey[state.algorithm].gen, state.baseArray, capForAlgorithm(state.algorithm));
     renderFrame();
-    if (engine.truncated) flashCapWarning();
+    if (engine.truncated) warnTruncated();
   } else {
     setActiveButton(null);
     engine.record(() => [].values(), state.baseArray); // empty recording
@@ -271,7 +287,7 @@ function runAlgorithm(key, array = state.baseArray) {
   engine.record(algorithmsByKey[key].gen, array, capForAlgorithm(key));
   renderer.setArray(array);
   renderFrame();
-  if (engine.truncated) flashCapWarning();
+  if (engine.truncated) warnTruncated();
 }
 
 function runPreset(key, caseType) {
@@ -298,11 +314,18 @@ function runPreset(key, caseType) {
 // --- array controls ----------------------------------------------------------
 
 function generateFromControls() {
-  const value = parseInt(dom.sizeInput.value, 10);
-  if (Number.isNaN(value) || value < MIN_SIZE || value > MAX_SIZE) {
-    dom.sizeInput.value = state.size;
-    return;
+  const raw = parseInt(dom.sizeInput.value, 10);
+  let value = raw;
+  if (Number.isNaN(raw)) {
+    value = state.size;
+    showWarning(`Enter a size between ${MIN_SIZE} and ${MAX_SIZE.toLocaleString()}.`);
+  } else if (raw < MIN_SIZE || raw > MAX_SIZE) {
+    value = Math.min(MAX_SIZE, Math.max(MIN_SIZE, raw));
+    showWarning(
+      `Size must be between ${MIN_SIZE} and ${MAX_SIZE.toLocaleString()} — using ${value.toLocaleString()}.`
+    );
   }
+  dom.sizeInput.value = value;
   state.size = value;
   state.range = dom.range.value;
   state.duplicates = dom.duplicates.value;
@@ -336,6 +359,7 @@ function bindEvents() {
   dom.range.addEventListener('change', generateFromControls);
   dom.duplicates.addEventListener('change', generateFromControls);
   dom.distribution.addEventListener('change', generateFromControls);
+  dom.regenerate.addEventListener('click', generateFromControls);
   dom.moreInfo.addEventListener('click', openModal);
 
   dom.playPause.addEventListener('click', togglePlay);

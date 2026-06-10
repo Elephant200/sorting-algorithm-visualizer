@@ -81,6 +81,61 @@ function uniqueRandomRange(size, maxValue) {
   return [...picked].sort(numericAsc);
 }
 
+// Ascending odds then descending evens: rises to the max, falls back down.
+function mountainValues(values) {
+  const sorted = values.slice().sort(numericAsc);
+  const up = [];
+  const down = [];
+  sorted.forEach((v, i) => (i % 2 === 0 ? up.push(v) : down.push(v)));
+  return up.concat(down.reverse());
+}
+
+// Descending odds then ascending evens: falls to the min, climbs back up.
+function valleyValues(values) {
+  const sorted = values.slice().sort(numericAsc);
+  const down = [];
+  const up = [];
+  sorted.forEach((v, i) => (i % 2 === 0 ? down.push(v) : up.push(v)));
+  return down.reverse().concat(up);
+}
+
+// Deal sorted values round-robin into k runs: k ascending "teeth", each
+// spanning the full value range.
+function sawtoothValues(values) {
+  const sorted = values.slice().sort(numericAsc);
+  const teeth = Math.max(3, Math.min(8, Math.floor(sorted.length / 12)));
+  const runs = Array.from({ length: teeth }, () => []);
+  sorted.forEach((v, i) => runs[i % teeth].push(v));
+  return runs.flat();
+}
+
+// Alternate extremes converging toward the middle: min, max, 2nd-min, ...
+function zigzagValues(values) {
+  const sorted = values.slice().sort(numericAsc);
+  const out = [];
+  let lo = 0;
+  let hi = sorted.length - 1;
+  while (lo <= hi) {
+    out.push(sorted[lo++]);
+    if (lo <= hi) out.push(sorted[hi--]);
+  }
+  return out;
+}
+
+// Sorted, then rotated left ~15% — one long run plus a displaced prefix.
+function rotatedValues(values) {
+  const sorted = values.slice().sort(numericAsc);
+  const k = Math.max(1, Math.round(sorted.length * 0.15));
+  return sorted.slice(k).concat(sorted.slice(0, k));
+}
+
+// Mostly sorted with a scrambled final quarter — the "append then re-sort" case.
+function shuffledTailValues(values) {
+  const sorted = values.slice().sort(numericAsc);
+  const start = Math.floor(sorted.length * 0.75);
+  return sorted.slice(0, start).concat(shuffle(sorted.slice(start)));
+}
+
 function partiallySortedRunValues(values) {
   const runs = [];
   const sorted = values.slice().sort(numericAsc);
@@ -105,6 +160,7 @@ const rangeMax = {
   range5000: () => 5000,
   range50000: () => 50000,
   range500000: () => 500000,
+  range1000000: () => 1000000,
 };
 
 export const distributions = {
@@ -121,7 +177,13 @@ export const distributions = {
     }
     return a;
   },
+  shuffledTail: (values) => shuffledTailValues(values),
+  rotated: (values) => rotatedValues(values),
   partiallySortedRuns: (values) => partiallySortedRunValues(values),
+  mountain: (values) => mountainValues(values),
+  valley: (values) => valleyValues(values),
+  sawtooth: (values) => sawtoothValues(values),
+  zigzag: (values) => zigzagValues(values),
   balancedPivot: (values) => quickBalancedPivotValues(values),
   dualPivotBalanced: (values) => dualPivotBalancedValues(values),
   highDisorder: (values) => highDisorderValues(values),
@@ -135,6 +197,7 @@ export const rangeGroups = [
       ['range5000', '1-5k'],
       ['range50000', '1-50k'],
       ['range500000', '1-500k'],
+      ['range1000000', '1-1M'],
     ],
   },
 ];
@@ -158,7 +221,18 @@ export const distributionGroups = [
       ['sorted', 'Sorted'],
       ['reversed', 'Reversed'],
       ['nearlySorted', 'Nearly sorted'],
+      ['shuffledTail', 'Sorted + shuffled tail'],
+      ['rotated', 'Rotated sorted'],
       ['partiallySortedRuns', 'Partially sorted runs'],
+    ],
+  },
+  {
+    label: 'Shapes',
+    options: [
+      ['mountain', 'Mountain (organ pipe)'],
+      ['valley', 'Valley'],
+      ['sawtooth', 'Sawtooth'],
+      ['zigzag', 'Zigzag'],
     ],
   },
   {

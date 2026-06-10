@@ -89,20 +89,43 @@ h1 {
   min-height: 1.3em;
 }
 
-.subtitle.needs-algorithm {
-  color: var(--sand-bright);
-  font-weight: 600;
+/* ---------- warning toast ---------- */
+
+.toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translate(-50%, -12px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(92vw, 560px);
+  padding: 11px 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.45;
+  box-shadow: var(--shadow), 0 0 24px rgba(230, 179, 77, 0.18);
+  z-index: 4000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
 }
 
-.subtitle.needs-cap-warning {
+.toast.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.toast i {
   color: var(--amber);
-  font-weight: 700;
-  animation: subtitle-warning-pulse 0.55s ease-in-out 2;
-}
-
-@keyframes subtitle-warning-pulse {
-  0%, 100% { text-shadow: none; }
-  50% { text-shadow: 0 0 18px rgba(230, 179, 77, 0.7); }
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
 /* ---------- generic control panels ---------- */
@@ -165,6 +188,13 @@ h1 {
   letter-spacing: 0.06em;
   font-size: 0.72rem;
   color: var(--text-muted);
+}
+
+/* labels with explanations hint at their hover tooltip */
+.control-group > span[data-tooltip] {
+  cursor: help;
+  text-decoration: underline dotted rgba(183, 174, 158, 0.45);
+  text-underline-offset: 3px;
 }
 
 /* ---------- inputs ---------- */

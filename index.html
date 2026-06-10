@@ -11,6 +11,11 @@
 </head>
 
 <body>
+  <div class="toast" id="toast" role="alert">
+    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+    <span id="toast-message"></span>
+  </div>
+
   <div class="container">
     <header class="app-header">
       <h1>Sorting Algorithm Visualizer</h1>
@@ -21,24 +26,28 @@
     <div class="controls settings-row">
       <div class="array-settings" aria-label="Array controls">
         <label class="control-group">
-          <span>Len</span>
-          <input type="number" id="size-input" min="3" max="1000">
+          <span data-tooltip="Number of elements (2–2,000)">Size</span>
+          <input type="number" id="size-input" min="2" max="2000">
         </label>
 
         <label class="control-group">
-          <span>Range</span>
+          <span data-tooltip="Range the element values are drawn from. 1-n keeps every value distinct; wider ranges matter for counting/radix-style sorts">Range</span>
           <select id="range"></select>
         </label>
 
         <label class="control-group">
-          <span>Dupes</span>
+          <span data-tooltip="How many repeated values appear in the array">Duplicates</span>
           <select id="duplicates"></select>
         </label>
 
         <label class="control-group">
-          <span>Distribution</span>
+          <span data-tooltip="Initial ordering of the array — the shape the sort starts from">Distribution</span>
           <select id="distribution"></select>
         </label>
+
+        <button class="ghost-button compact-button" id="regenerate" data-tooltip="Generate a new array with these settings" aria-label="Generate a new array">
+          <i class="fas fa-dice" aria-hidden="true"></i>
+        </button>
       </div>
 
       <div class="utility-settings" aria-label="Playback and documentation controls">
