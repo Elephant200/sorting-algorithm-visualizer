@@ -23,8 +23,8 @@ import {
 
 const MIN_SIZE = 2;
 const MAX_SIZE = 2000;
-const DEFAULT_SIZE = 100;
-const DEFAULT_SPEED = 55;
+const DEFAULT_SIZE = 30;
+const DEFAULT_SPEED = 35;
 const LARGE_STEP = 50;
 const BOGO_CAP = 50000;
 // Every bogo shuffle op snapshots the whole array twice, so bound total
