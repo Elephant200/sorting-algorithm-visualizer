@@ -58,46 +58,49 @@
     <!-- Algorithm picker -->
     <div class="controls algo-toolbar" id="algo-buttons"></div>
 
-    <!-- Color legend -->
-    <div class="legend">
-      <span class="legend-item"><i class="swatch comparing"></i> Comparing</span>
-      <span class="legend-item"><i class="swatch swapping"></i> Swapping</span>
-      <span class="legend-item"><i class="swatch writing"></i> Writing</span>
-      <span class="legend-item"><i class="swatch pivot"></i> Pivot</span>
-      <span class="legend-item"><i class="swatch sorted"></i> Sorted</span>
+    <!-- Visualization with overlay color key -->
+    <div class="array-wrap">
+      <div class="legend" aria-label="Color key">
+        <span class="legend-item"><i class="swatch comparing"></i> Comparing</span>
+        <span class="legend-item"><i class="swatch swapping"></i> Swapping</span>
+        <span class="legend-item"><i class="swatch writing"></i> Writing</span>
+        <span class="legend-item"><i class="swatch pivot"></i> Pivot</span>
+        <span class="legend-item"><i class="swatch sorted"></i> Sorted</span>
+      </div>
+      <div id="array-container"></div>
     </div>
-
-    <div id="array-container"></div>
 
     <!-- Playback controls -->
     <div class="controls playback-controls">
-      <label class="control-group slider-group playback-speed">
-        <span data-tooltip="Playback rate — how many recorded steps are applied per second">Speed</span>
-        <i class="fas fa-person-walking speed-icon" aria-hidden="true"></i>
-        <input type="range" id="speed" min="0" max="100" value="55">
-        <i class="fas fa-person-running speed-icon" aria-hidden="true"></i>
-        <span class="ops-rate" id="ops-rate" aria-label="Effective playback rate"></span>
-      </label>
-
-      <div class="transport" aria-label="Playback controls">
-        <button id="step-back-large" class="step-large" title="Step back 50 (Shift+←)" aria-label="Step back 50"><i class="fas fa-backward-fast" aria-hidden="true"></i></button>
-        <button id="step-back" title="Step back (←)" aria-label="Step back"><i class="fas fa-backward-step" aria-hidden="true"></i></button>
-        <button id="play-pause" class="primary" title="Play / pause (Space)" aria-label="Play / pause"><i class="fas fa-play" aria-hidden="true"></i></button>
-        <button id="step-forward" title="Step forward (→)" aria-label="Step forward"><i class="fas fa-forward-step" aria-hidden="true"></i></button>
-        <button id="step-forward-large" class="step-large" title="Step forward 50 (Shift+→)" aria-label="Step forward 50"><i class="fas fa-forward-fast" aria-hidden="true"></i></button>
+      <div class="scrub-row">
+        <span class="scrub-label" data-tooltip="Drag to jump anywhere in the recorded sort">Progress:</span>
+        <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Scrub through the recorded sort" disabled>
+        <span class="progress" id="progress">0%</span>
       </div>
 
-      <label class="control-group slider-group scrub-group">
-        <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Scrub through the recorded sort" disabled>
-      </label>
+      <div class="playback-row">
+        <label class="control-group slider-group playback-speed">
+          <span data-tooltip="Playback rate — how many recorded steps are applied per second">Speed</span>
+          <i class="fas fa-person-walking speed-icon" aria-hidden="true"></i>
+          <input type="range" id="speed" min="0" max="100" value="55">
+          <i class="fas fa-person-running speed-icon" aria-hidden="true"></i>
+          <span class="ops-rate" id="ops-rate" aria-label="Effective playback rate"></span>
+        </label>
 
-      <span class="progress" id="progress">0%</span>
+        <div class="transport" aria-label="Playback controls">
+          <button id="step-back-large" class="step-large" title="Step back 50 (Shift+←)" aria-label="Step back 50"><i class="fas fa-backward-fast" aria-hidden="true"></i></button>
+          <button id="step-back" title="Step back (←)" aria-label="Step back"><i class="fas fa-backward-step" aria-hidden="true"></i></button>
+          <button id="play-pause" class="primary" title="Play / pause (Space)" aria-label="Play / pause"><i class="fas fa-play" aria-hidden="true"></i></button>
+          <button id="step-forward" title="Step forward (→)" aria-label="Step forward"><i class="fas fa-forward-step" aria-hidden="true"></i></button>
+          <button id="step-forward-large" class="step-large" title="Step forward 50 (Shift+→)" aria-label="Step forward 50"><i class="fas fa-forward-fast" aria-hidden="true"></i></button>
+        </div>
 
-      <div id="stats-panel" class="inline-stats" aria-label="Statistics">
-        <p class="stat-row compare"><span class="stat-label">Comparisons</span><span id="stat-comparisons">0</span></p>
-        <p class="stat-row write"><span class="stat-label">Writes</span><span id="stat-writes">0</span></p>
-        <p class="stat-row shuffle"><span class="stat-label">Shuffles</span><span id="stat-shuffles">0</span></p>
-        <p class="stat-row"><span class="stat-label">Time</span><span><span id="stat-time">0.00</span>s</span></p>
+        <div id="stats-panel" class="inline-stats" aria-label="Statistics">
+          <p class="stat-row compare"><span class="stat-label">Comparisons</span><span id="stat-comparisons">0</span></p>
+          <p class="stat-row write"><span class="stat-label">Writes</span><span id="stat-writes">0</span></p>
+          <p class="stat-row shuffle"><span class="stat-label">Shuffles</span><span id="stat-shuffles">0</span></p>
+          <p class="stat-row"><span class="stat-label">Time</span><span><span id="stat-time">0.00</span>s</span></p>
+        </div>
       </div>
     </div>
   </div>

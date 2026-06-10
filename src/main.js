@@ -472,7 +472,7 @@ function bindEvents() {
 // --- init --------------------------------------------------------------------
 
 function init() {
-  buildAlgorithmButtons(dom.algoButtons, (key) => runAlgorithm(key), openModalAt);
+  buildAlgorithmButtons(dom.algoButtons, (key) => runAlgorithm(key), openModalAt, () => state.algorithm);
   buildDistributionOptions(dom.range, rangeGroups);
   buildDistributionOptions(dom.duplicates, duplicateGroups);
   buildDistributionOptions(dom.distribution, distributionGroups);

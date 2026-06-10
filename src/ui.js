@@ -157,7 +157,7 @@ function saveExpandedPreference(expanded) {
   }
 }
 
-export function buildAlgorithmButtons(container, onSelect, onInfo) {
+export function buildAlgorithmButtons(container, onSelect, onInfo, getActive) {
   setupFloatingTooltips();
   const byKey = new Map(algorithms.map((algo) => [algo.key, algo]));
   let expanded = readExpandedPreference();
@@ -218,7 +218,11 @@ export function buildAlgorithmButtons(container, onSelect, onInfo) {
   };
 
   const render = () => {
-    const activeKey = container.querySelector('.algo-button.active')?.dataset.algorithm;
+    // Ask the app which algorithm is selected rather than reading it back
+    // from the DOM: a collapsed toolbar has no chip for an expanded-only
+    // algorithm, so the DOM forgets the selection across collapse/expand.
+    const activeKey =
+      getActive?.() ?? container.querySelector('.algo-button.active')?.dataset.algorithm;
     container.innerHTML = '';
     const keys = expanded ? EXPANDED_ALGORITHM_KEYS : DEFAULT_ALGORITHM_KEYS;
     const visibleAlgorithms = keys.map((key) => byKey.get(key)).filter(Boolean);
