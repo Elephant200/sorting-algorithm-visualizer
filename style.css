@@ -464,8 +464,14 @@ button:disabled {
   justify-self: start;
 }
 
-.playback-row .transport {
+.playback-row .transport-cluster {
   justify-self: center;
+}
+
+.transport-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .playback-row .inline-stats {
@@ -519,6 +525,37 @@ button:disabled {
   width: 42px;
   height: 42px;
   font-size: 1.05rem;
+}
+
+.sound-toggle {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  flex-shrink: 0;
+}
+
+.sound-toggle:hover {
+  background: var(--bg-3);
+  color: var(--text);
+  border-color: var(--sand-deep);
+}
+
+.sound-toggle.active {
+  background: linear-gradient(180deg, var(--sand), var(--sand-deep));
+  border-color: var(--sand-bright);
+  color: #1a160f;
+}
+
+.sound-toggle.active:hover {
+  background: linear-gradient(180deg, var(--sand-bright), var(--sand));
 }
 
 .slider-group { gap: 9px; }
@@ -1126,6 +1163,71 @@ button:disabled {
 .code-content .string { color: #d29a78; }
 .code-content .number { color: #9fc99a; }
 .code-content .comment { color: #6f7d63; font-style: italic; }
+
+/* ---------- keyboard shortcuts overlay ---------- */
+
+.shortcuts-overlay {
+  z-index: 2000; /* above the docs modal */
+}
+
+.shortcuts-card {
+  width: min(94%, 440px);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.25s ease;
+}
+
+.shortcuts-overlay.active .shortcuts-card { transform: none; }
+
+.shortcuts-card .modal-header {
+  padding: 18px 22px;
+}
+
+.shortcuts-card .modal-header h2 {
+  font-size: 1.1rem;
+}
+
+.shortcuts-list {
+  padding: 18px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.shortcut dt {
+  white-space: nowrap;
+}
+
+.shortcut dd {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  text-align: right;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 26px;
+  padding: 4px 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text);
+  text-align: center;
+}
 
 /* ---------- tooltips ---------- */
 

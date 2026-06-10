@@ -2,6 +2,7 @@
 // the auto-play driver (speed -> ops-per-tick + delay).
 
 import { algorithmsByKey } from './algorithms.js';
+import { createAudio } from './audio.js';
 import { createEngine } from './engine.js';
 import { createRenderer } from './renderer.js';
 import {
@@ -58,9 +59,14 @@ const dom = {
   regenerate: $('regenerate'),
   toast: $('toast'),
   toastMessage: $('toast-message'),
+  soundToggle: $('sound-toggle'),
+  shortcutsButton: $('shortcuts-button'),
+  shortcutsOverlay: $('shortcuts-overlay'),
+  shortcutsClose: $('shortcuts-close'),
 };
 
 const engine = createEngine();
+const audio = createAudio();
 const renderer = createRenderer({
   container: dom.container,
   stats: {
@@ -83,6 +89,7 @@ const state = {
   timer: null,
   elapsedMs: 0,
   playStartedAt: 0,
+  maxValue: 1,
 };
 
 // --- speed mapping -----------------------------------------------------------
@@ -226,6 +233,51 @@ function warnTruncated() {
   );
 }
 
+// --- sound ---------------------------------------------------------------
+// One blip per painted frame (not per op): at batched speeds the most recent
+// op of the tick is what's on screen, so it's also what you hear.
+
+const SOUND_STORAGE_KEY = 'sav:sound';
+
+function soundForCurrentOp() {
+  const op = engine.currentOp();
+  if (!op || !audio.enabled) return;
+  const arr = engine.array;
+  if (op.type === 'compare') {
+    audio.blip(arr[op.indices[0]] / state.maxValue, 'compare');
+  } else if (op.type === 'swap') {
+    audio.blip(arr[op.indices[0]] / state.maxValue, 'swap');
+  } else if (op.type === 'overwrite') {
+    audio.blip(op.value / state.maxValue, 'write');
+  } else if (op.type === 'setArray') {
+    audio.blip(0.5, 'shuffle');
+  }
+}
+
+function setSoundEnabled(on, { persist = true } = {}) {
+  audio.setEnabled(on);
+  dom.soundToggle.classList.toggle('active', on);
+  dom.soundToggle.setAttribute('aria-pressed', String(on));
+  dom.soundToggle.innerHTML = on
+    ? '<i class="fas fa-volume-high" aria-hidden="true"></i>'
+    : '<i class="fas fa-volume-xmark" aria-hidden="true"></i>';
+  if (persist) {
+    try {
+      localStorage.setItem(SOUND_STORAGE_KEY, on ? '1' : '0');
+    } catch {
+      /* storage unavailable — preference just won't persist */
+    }
+  }
+}
+
+function readSoundPreference() {
+  try {
+    return localStorage.getItem(SOUND_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 // --- driver ------------------------------------------------------------------
 
 function play() {
@@ -252,8 +304,10 @@ function play() {
     renderFrame();
     if (engine.done) {
       pause();
+      if (!engine.truncated) audio.finish();
       return;
     }
+    soundForCurrentOp();
     state.timer = setTimeout(tick, frameDelay());
   };
   tick();
@@ -283,6 +337,7 @@ function stepMany(forward, count = 1) {
   for (let i = 0; i < count; i++) {
     if (forward ? !engine.stepForward() : !engine.stepBackward()) break;
   }
+  soundForCurrentOp();
   renderFrame();
 }
 
@@ -291,6 +346,7 @@ function stepMany(forward, count = 1) {
 function regenerate() {
   pause();
   state.baseArray = generateArray(state.size, state.range, state.duplicates, state.distribution);
+  state.maxValue = Math.max(...state.baseArray, 1);
   state.elapsedMs = 0;
   renderer.setArray(state.baseArray);
   if (state.algorithm) {
@@ -313,6 +369,7 @@ function runAlgorithm(key, array = state.baseArray) {
   clearPickAlgorithmPrompt();
   state.algorithm = key;
   state.baseArray = array;
+  state.maxValue = Math.max(...array, 1);
   state.elapsedMs = 0;
   setActiveButton(key);
   engine.record(algorithmsByKey[key].gen, array, capForAlgorithm(key));
@@ -386,6 +443,14 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
+function openShortcuts() {
+  dom.shortcutsOverlay.classList.add('active');
+}
+
+function closeShortcuts() {
+  dom.shortcutsOverlay.classList.remove('active');
+}
+
 // --- events ------------------------------------------------------------------
 
 function bindEvents() {
@@ -429,13 +494,24 @@ function bindEvents() {
   dom.modalOverlay.addEventListener('click', (e) => {
     if (e.target === dom.modalOverlay) closeModal();
   });
+
+  dom.soundToggle.addEventListener('click', () => setSoundEnabled(!audio.enabled));
+  dom.shortcutsButton.addEventListener('click', openShortcuts);
+  dom.shortcutsClose.addEventListener('click', closeShortcuts);
+  dom.shortcutsOverlay.addEventListener('click', (e) => {
+    if (e.target === dom.shortcutsOverlay) closeShortcuts();
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      closeModal();
+      // Close the topmost layer only: shortcuts sit above the docs modal.
+      if (dom.shortcutsOverlay.classList.contains('active')) closeShortcuts();
+      else closeModal();
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (dom.modalOverlay.classList.contains('active')) return;
+    if (dom.shortcutsOverlay.classList.contains('active')) return;
 
     const target = e.target;
     // Sliders handle their own arrow keys but don't use space/enter/letters.
@@ -456,6 +532,10 @@ function bindEvents() {
       stepMany(e.key === 'ArrowRight', e.shiftKey ? LARGE_STEP : 1);
     } else if (e.key === 'r' || e.key === 'R') {
       generateFromControls();
+    } else if (e.key === 'm' || e.key === 'M') {
+      setSoundEnabled(!audio.enabled);
+    } else if (e.key === '?') {
+      openShortcuts();
     }
   });
 
@@ -483,6 +563,7 @@ function init() {
   dom.sizeInput.value = state.size;
   dom.speed.value = DEFAULT_SPEED;
   updateOpsRate();
+  setSoundEnabled(readSoundPreference(), { persist: false });
   bindEvents();
   regenerate();
 }
