@@ -558,6 +558,15 @@ button:disabled {
   background: linear-gradient(180deg, var(--sand-bright), var(--sand));
 }
 
+.sound-toggle.size-muted,
+.sound-toggle.size-muted:hover {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: var(--bg-1);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
 .slider-group { gap: 9px; }
 
 .speed-icon {

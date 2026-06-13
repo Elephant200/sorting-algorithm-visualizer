@@ -6,7 +6,7 @@
 // values stand out. Stats are written into cached <span> nodes (no innerHTML
 // rebuilds).
 
-const SMOOTH_MAX_BARS = 200; // height transitions get janky beyond this
+export const SMOOTH_MAX_BARS = 200; // height transitions get janky beyond this
 
 export function createRenderer({ container, stats }) {
   let bars = [];

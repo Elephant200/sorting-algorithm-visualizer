@@ -4,7 +4,7 @@
 import { algorithmsByKey } from './algorithms.js';
 import { createAudio } from './audio.js';
 import { createEngine } from './engine.js';
-import { createRenderer } from './renderer.js';
+import { createRenderer, SMOOTH_MAX_BARS } from './renderer.js';
 import {
   distributionGroups,
   duplicateGroups,
@@ -278,6 +278,29 @@ function readSoundPreference() {
   }
 }
 
+// --- sound / array-size coupling ---------------------------------------------
+// Sound becomes chaotic with many bars, so auto-mute whenever the array
+// exceeds the smooth-rendering threshold and restore when it drops back.
+
+const SOUND_TOOLTIP_DEFAULT = 'Hear the sort — pitch follows the values being touched (M)';
+const SOUND_TOOLTIP_MUTED_FOR_SIZE = 'Sound is disabled for large arrays — reduce the size to re-enable';
+let soundMutedForSize = false;
+
+function updateSoundForSize(n) {
+  const tooBig = n > SMOOTH_MAX_BARS;
+  if (tooBig && !soundMutedForSize) {
+    soundMutedForSize = true;
+    setSoundEnabled(false, { persist: false });
+    dom.soundToggle.classList.add('size-muted');
+    dom.soundToggle.dataset.tooltip = SOUND_TOOLTIP_MUTED_FOR_SIZE;
+  } else if (!tooBig && soundMutedForSize) {
+    soundMutedForSize = false;
+    setSoundEnabled(readSoundPreference(), { persist: false });
+    dom.soundToggle.classList.remove('size-muted');
+    dom.soundToggle.dataset.tooltip = SOUND_TOOLTIP_DEFAULT;
+  }
+}
+
 // --- driver ------------------------------------------------------------------
 
 function play() {
@@ -347,6 +370,7 @@ function regenerate() {
   pause();
   state.baseArray = generateArray(state.size, state.range, state.duplicates, state.distribution);
   state.maxValue = Math.max(...state.baseArray, 1);
+  updateSoundForSize(state.baseArray.length);
   state.elapsedMs = 0;
   renderer.setArray(state.baseArray);
   if (state.algorithm) {
@@ -370,6 +394,7 @@ function runAlgorithm(key, array = state.baseArray) {
   state.algorithm = key;
   state.baseArray = array;
   state.maxValue = Math.max(...array, 1);
+  updateSoundForSize(array.length);
   state.elapsedMs = 0;
   setActiveButton(key);
   engine.record(algorithmsByKey[key].gen, array, capForAlgorithm(key));
@@ -495,7 +520,10 @@ function bindEvents() {
     if (e.target === dom.modalOverlay) closeModal();
   });
 
-  dom.soundToggle.addEventListener('click', () => setSoundEnabled(!audio.enabled));
+  dom.soundToggle.addEventListener('click', () => {
+    if (soundMutedForSize) return;
+    setSoundEnabled(!audio.enabled);
+  });
   dom.shortcutsButton.addEventListener('click', openShortcuts);
   dom.shortcutsClose.addEventListener('click', closeShortcuts);
   dom.shortcutsOverlay.addEventListener('click', (e) => {
@@ -533,7 +561,7 @@ function bindEvents() {
     } else if (e.key === 'r' || e.key === 'R') {
       generateFromControls();
     } else if (e.key === 'm' || e.key === 'M') {
-      setSoundEnabled(!audio.enabled);
+      if (!soundMutedForSize) setSoundEnabled(!audio.enabled);
     } else if (e.key === '?') {
       openShortcuts();
     }

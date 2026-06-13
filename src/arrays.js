@@ -149,6 +149,21 @@ function partiallySortedRunValues(values) {
   return shuffle(runs).flat();
 }
 
+function nearlySortedValues(values) {
+  const sorted = values.slice().sort(numericAsc);
+  const n = sorted.length;
+  if (n < 2) return sorted;
+
+  const jitter = Math.max(2, Math.round(n * 0.08));
+  return sorted
+    .map((value, index) => ({
+      value,
+      order: index + (Math.random() * 2 - 1) * jitter,
+    }))
+    .sort((a, b) => a.order - b.order)
+    .map((item) => item.value);
+}
+
 export const quicksortFirstAlgorithms = new Set(['quick', 'introsort', 'pdqsort', 'dual-pivot']);
 export const noSpecialWorstCaseAlgorithms = new Set(['tim', 'powersort']);
 export const valueSensitiveAlgorithms = new Set(['counting', 'radix', 'bead', 'bucket']);
@@ -167,16 +182,7 @@ export const distributions = {
   random: (values) => shuffle(values.slice()),
   sorted: (values) => values.slice().sort(numericAsc),
   reversed: (values) => values.slice().sort(numericDesc),
-  nearlySorted: (values) => {
-    const a = values.slice().sort(numericAsc);
-    const swaps = Math.max(1, Math.round(a.length * 0.05));
-    for (let k = 0; k < swaps; k++) {
-      const i = Math.floor(Math.random() * a.length);
-      const j = Math.floor(Math.random() * a.length);
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  },
+  nearlySorted: (values) => nearlySortedValues(values),
   shuffledTail: (values) => shuffledTailValues(values),
   rotated: (values) => rotatedValues(values),
   partiallySortedRuns: (values) => partiallySortedRunValues(values),
