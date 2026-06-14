@@ -467,13 +467,20 @@ export function buildModal({ sidebar, content }, onRunPreset) {
     });
   });
 
+  const scrollContentTo = (target, behavior = 'smooth') => {
+    if (!target) return;
+    const top =
+      target.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop;
+    content.scrollTo({ top, behavior });
+  };
+
   const scrollToAlgorithm = (key, behavior = 'smooth') => {
     const section = content.querySelector(`#section-${key}`);
-    section?.scrollIntoView({ behavior, block: 'start' });
+    scrollContentTo(section, behavior);
   };
 
   const scrollToSummary = () => {
-    content.querySelector('.algorithm-overview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollContentTo(content.querySelector('.algorithm-overview'));
   };
 
   content.querySelectorAll('.overview-name').forEach((item) => {

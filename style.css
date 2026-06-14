@@ -858,6 +858,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .modal-header {
@@ -903,8 +904,10 @@ button:disabled {
 
 .modal-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 28px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .algorithm-section {
@@ -1316,28 +1319,311 @@ kbd {
 }
 
 @media (max-width: 620px) {
-  body { padding: 18px 12px 36px; }
-  h1 { font-size: 1.45rem; }
-  .subtitle { font-size: 0.82rem; }
-  .settings-row { justify-content: flex-start; }
-  .array-settings,
-  .utility-settings { justify-content: flex-start; }
-  .inline-stats { justify-content: flex-start; }
-  .stat-row { width: calc(50% - 4px); }
-  .transport button { width: 36px; height: 36px; }
-  .transport button.step-large { width: 40px; height: 40px; }
-  #speed { width: 120px; }
+  body {
+    height: 100svh;
+    min-height: 100svh;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .container {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .app-header { margin-bottom: 0; }
+  h1 { font-size: 1rem; line-height: 1.15; }
+  .subtitle { display: none; }
+
+  .settings-row,
+  .algo-toolbar,
+  .playback-controls {
+    margin-bottom: 0;
+    border-radius: var(--radius-sm);
+  }
+
+  .settings-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .array-settings {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) 38px;
+    gap: 5px;
+    flex: none;
+    min-width: 0;
+  }
+
+  .array-settings .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .array-settings .control-group:nth-child(4) {
+    grid-column: 1 / 4;
+  }
+
+  .array-settings .compact-button {
+    grid-column: 4;
+    grid-row: 1 / 3;
+    align-self: stretch;
+    width: 38px;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .control-group > span {
+    font-size: 0.58rem;
+    line-height: 1;
+    letter-spacing: 0.05em;
+  }
+
+  input[type="number"],
+  select {
+    width: 100%;
+    min-width: 0;
+    height: 27px;
+    padding: 4px 7px;
+    font-size: 0.76rem;
+  }
+
+  input[type="number"] { width: 100%; }
+  select { padding-right: 18px; }
+
+  .utility-settings {
+    flex: none;
+    flex-direction: column;
+    justify-content: stretch;
+    gap: 5px;
+    padding: 0 0 0 6px;
+    border-top: none;
+    border-left: 1px solid var(--border-soft);
+  }
+
+  .utility-settings .ghost-button {
+    width: 38px;
+    min-height: 0;
+    flex: 1 1 0;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .utility-settings .ghost-button i {
+    font-size: 0.86rem;
+  }
+
+  .algo-toolbar {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .algo-toolbar::-webkit-scrollbar { display: none; }
+
+  .algo-group {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: none;
+  }
+
+  .algo-group + .algo-group {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .algo-group-label { display: none; }
+  .algo-chips { flex-wrap: nowrap; gap: 5px; }
+
+  .algo-button,
+  .more-toggle {
+    min-height: 30px;
+    padding: 5px 9px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .algo-info { display: none; }
+
+  .array-wrap {
+    display: flex;
+    min-height: 0;
+  }
+
+  .legend {
+    top: 6px;
+    left: 6px;
+    flex-direction: row;
+    gap: 5px;
+    padding: 5px 6px;
+    font-size: 0;
+  }
+
+  .legend-item { gap: 0; }
+  .swatch { width: 8px; height: 8px; }
+
+  #array-container {
+    flex: 1;
+    height: auto;
+    min-height: 150px;
+    padding: 8px;
+  }
+
+  .playback-controls {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .scrub-row { gap: 6px; }
+  .scrub-label { display: none; }
+  .progress { width: 40px; font-size: 0.7rem; }
+
+  .playback-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    justify-items: center;
+  }
+
+  .playback-speed {
+    justify-self: stretch;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  #speed {
+    width: min(44vw, 160px);
+  }
+
+  .ops-rate {
+    width: 64px;
+    font-size: 0.66rem;
+  }
+
+  .transport-cluster {
+    gap: 6px;
+  }
+
+  .transport {
+    gap: 3px;
+    padding: 3px;
+  }
+
+  .transport button,
+  .sound-toggle {
+    width: 32px;
+    height: 32px;
+    font-size: 0.82rem;
+  }
+
+  .transport button.step-large {
+    width: 34px;
+    height: 34px;
+    font-size: 0.9rem;
+  }
+
+  .inline-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .stat-row {
+    width: auto;
+    min-width: 0;
+    min-height: 24px;
+    padding: 3px 5px;
+    gap: 3px;
+    font-size: 0.7rem;
+  }
+
+  .stat-label {
+    font-size: 0;
+  }
+
+  .stat-label::after {
+    font-size: 0.62rem;
+  }
+
+  .stat-row.compare .stat-label::after { content: "Cmp"; }
+  .stat-row.write .stat-label::after { content: "Wrt"; }
+  .stat-row.shuffle .stat-label::after { content: "Shuf"; }
+  .stat-row:not(.compare):not(.write):not(.shuffle) .stat-label::after { content: "Time"; }
+
+  .stat-row span:last-child {
+    min-width: 0;
+    font-size: 0.72rem;
+  }
+
+  .modal-container {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-sm);
+  }
+
+  .modal-sidebar {
+    flex-wrap: nowrap;
+    max-height: 54px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+  }
+
+  .modal-sidebar h3,
+  .sidebar-group {
+    display: none;
+  }
+
+  .sidebar-item {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    font-size: 0.76rem;
+  }
+
+  .modal-header {
+    padding: 10px 12px;
+  }
+
+  .modal-header h2 {
+    font-size: 1rem;
+  }
+
+  .modal-content {
+    padding: 14px;
+  }
 }
 
 /* ---------- responsive: height ---------- */
 
-@media (max-height: 720px) {
+@media (max-height: 720px) and (min-width: 621px) {
   body { padding-top: 18px; }
   .app-header { margin-bottom: 12px; }
   .subtitle { display: none; }
   .settings-row, .algo-toolbar, .playback-controls { margin-bottom: 10px; }
 }
 
-@media (max-height: 560px) {
+@media (max-height: 560px) and (min-width: 621px) {
   #array-container { height: clamp(180px, 38vh, 320px); }
 }
