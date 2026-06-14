@@ -524,6 +524,11 @@ function openModalAt(key) {
   docsModal?.scrollToAlgorithm(key, 'auto');
 }
 
+function openDocsForCurrentSelection() {
+  if (state.algorithm) openModalAt(state.algorithm);
+  else openModal();
+}
+
 function closeModal() {
   dom.modalOverlay.classList.remove('active');
   document.body.style.overflow = '';
@@ -551,7 +556,7 @@ function bindEvents() {
   dom.duplicates.addEventListener('change', generateFromControls);
   dom.distribution.addEventListener('change', generateFromControls);
   dom.regenerate.addEventListener('click', generateFromControls);
-  dom.moreInfo.addEventListener('click', openModal);
+  dom.moreInfo.addEventListener('click', openDocsForCurrentSelection);
 
   dom.playPause.addEventListener('click', togglePlay);
   dom.stepForward.addEventListener('click', () => stepMany(true));
