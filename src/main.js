@@ -632,6 +632,8 @@ function bindEvents() {
       generateFromControls();
     } else if (e.key === 'm' || e.key === 'M') {
       if (!soundMutedForSize) setSoundEnabled(!audio.enabled);
+    } else if (e.key === 'd' || e.key === 'D') {
+      openDocsForCurrentSelection();
     } else if (e.key === '?') {
       openShortcuts();
     }
