@@ -32,6 +32,12 @@ const BOGO_CAP = 50000;
 const BOGO_SNAPSHOT_BUDGET = 4_000_000;
 
 const $ = (id) => document.getElementById(id);
+const optionValues = (groups) =>
+  new Set(groups.flatMap((group) => group.options.map(([value]) => value)));
+
+const validRanges = optionValues(rangeGroups);
+const validDuplicates = optionValues(duplicateGroups);
+const validDistributions = optionValues(distributionGroups);
 
 const dom = {
   container: $('array-container'),
@@ -90,7 +96,59 @@ const state = {
   elapsedMs: 0,
   playStartedAt: 0,
   maxValue: 1,
+  speed: DEFAULT_SPEED,
 };
+
+// --- shareable URL state -----------------------------------------------------
+
+function clampNumber(value, min, max, fallback) {
+  if (value === null || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(parsed)));
+}
+
+function optionParam(params, key, validValues, fallback) {
+  const value = params.get(key);
+  return value && validValues.has(value) ? value : fallback;
+}
+
+function applyUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  const algorithm = params.get('algo');
+
+  state.size = clampNumber(params.get('size'), MIN_SIZE, MAX_SIZE, DEFAULT_SIZE);
+  state.range = optionParam(params, 'range', validRanges, 'length');
+  state.duplicates = optionParam(params, 'duplicates', validDuplicates, 'none');
+  state.distribution = optionParam(params, 'distribution', validDistributions, 'random');
+  state.algorithm = algorithm && algorithmsByKey[algorithm] ? algorithm : null;
+  state.speed = clampNumber(params.get('speed'), 0, 100, DEFAULT_SPEED);
+}
+
+function syncUrlState() {
+  const params = new URLSearchParams();
+  const hasCustomControls =
+    state.size !== DEFAULT_SIZE ||
+    state.range !== 'length' ||
+    state.duplicates !== 'none' ||
+    state.distribution !== 'random' ||
+    state.speed !== DEFAULT_SPEED;
+
+  if (state.algorithm) params.set('algo', state.algorithm);
+  if (hasCustomControls || state.algorithm) {
+    params.set('size', String(state.size));
+    params.set('range', state.range);
+    params.set('duplicates', state.duplicates);
+    params.set('distribution', state.distribution);
+    if (state.speed !== DEFAULT_SPEED) params.set('speed', String(state.speed));
+  }
+
+  const nextSearch = params.toString();
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
+    window.history.replaceState(null, '', nextUrl);
+  }
+}
 
 // --- speed mapping -----------------------------------------------------------
 
@@ -386,6 +444,7 @@ function regenerate() {
     dom.progress.textContent = '0%';
     dom.status.textContent = 'Select an algorithm to visualize.';
   }
+  syncUrlState();
 }
 
 function runAlgorithm(key, array = state.baseArray) {
@@ -401,6 +460,7 @@ function runAlgorithm(key, array = state.baseArray) {
   renderer.setArray(array);
   renderFrame();
   if (engine.truncated) warnTruncated();
+  syncUrlState();
 }
 
 function runPreset(key, caseType) {
@@ -416,6 +476,7 @@ function runPreset(key, caseType) {
   dom.range.value = preset.range;
   dom.duplicates.value = preset.duplicates;
   dom.distribution.value = preset.distribution;
+  state.speed = DEFAULT_SPEED;
   dom.speed.value = DEFAULT_SPEED;
   updateOpsRate();
   closeModal();
@@ -498,7 +559,11 @@ function bindEvents() {
   dom.stepForwardLarge.addEventListener('click', () => stepMany(true, LARGE_STEP));
   dom.stepBackLarge.addEventListener('click', () => stepMany(false, LARGE_STEP));
 
-  dom.speed.addEventListener('input', updateOpsRate);
+  dom.speed.addEventListener('input', () => {
+    state.speed = Number(dom.speed.value);
+    updateOpsRate();
+    syncUrlState();
+  });
 
   // Scrubbing: input events can fire far faster than frames, and a long drag
   // can ask for seeks millions of ops apart. Coalesce to one seek + one paint
@@ -580,6 +645,7 @@ function bindEvents() {
 // --- init --------------------------------------------------------------------
 
 function init() {
+  applyUrlState();
   buildAlgorithmButtons(dom.algoButtons, (key) => runAlgorithm(key), openModalAt, () => state.algorithm);
   buildDistributionOptions(dom.range, rangeGroups);
   buildDistributionOptions(dom.duplicates, duplicateGroups);
@@ -589,7 +655,10 @@ function init() {
     runPreset
   );
   dom.sizeInput.value = state.size;
-  dom.speed.value = DEFAULT_SPEED;
+  dom.range.value = state.range;
+  dom.duplicates.value = state.duplicates;
+  dom.distribution.value = state.distribution;
+  dom.speed.value = state.speed;
   updateOpsRate();
   setSoundEnabled(readSoundPreference(), { persist: false });
   bindEvents();
