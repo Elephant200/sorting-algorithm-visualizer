@@ -470,7 +470,9 @@ export function buildModal({ sidebar, content }, onRunPreset) {
   const scrollContentTo = (target, behavior = 'smooth') => {
     if (!target) return;
     const top =
-      target.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop;
+      target.offsetParent === content.offsetParent
+        ? target.offsetTop - content.offsetTop
+        : target.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop;
     content.scrollTo({ top, behavior });
   };
 
